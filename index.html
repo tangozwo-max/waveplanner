@@ -49,7 +49,7 @@
   th,td{border:1px solid var(--line);text-align:center}
   thead th{background:var(--navy);color:#fff;font-size:12px;font-weight:600;padding:8px 6px}
   th.time,td.time{background:#eef3f5;font-weight:700;font-size:12px;width:64px;white-space:nowrap;color:#3a4a52}
-  td.slot{cursor:pointer;padding:3px;vertical-align:top;min-width:120px}
+  td.slot{cursor:pointer;padding:3px;vertical-align:top;min-width:132px}
   td.slot.empty{background:var(--empty);height:40px}
   td.slot.empty:hover{background:var(--emptyhover)}
   .cellwrap{display:flex;flex-direction:column;gap:3px}
@@ -89,7 +89,7 @@
   .daycount{margin-top:3px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:14px}
   .daycount .dc{font-size:9px;font-weight:800;color:#fff;border-radius:5px;padding:0 4px;line-height:14px}
   .cellrow{display:flex;flex-wrap:wrap;gap:3px;align-items:stretch}
-  .ubox{flex:1 1 30%;min-width:52px;display:flex;flex-direction:column;gap:2px;padding:1px}
+  .ubox{flex:1 1 44%;min-width:56px;display:flex;flex-direction:column;gap:2px;padding:1px}
   .ubox.a-l{align-items:flex-start}
   .ubox.a-c{align-items:center}
   .ubox.a-r{align-items:flex-end}
@@ -98,7 +98,7 @@
   .ubox.addself{align-items:center;justify-content:center;color:#9aa7ad;border:1px dashed #cdd8dd;border-radius:6px;cursor:pointer;font-size:12px;min-height:24px}
   .ubox.addself:hover{color:var(--navy);border-color:var(--navy);background:#eef4f6}
   .ubadge{font-size:10px;font-weight:800;color:#fff;border-radius:4px;padding:0 5px;line-height:15px}
-  .lchip{font-size:11px;font-weight:700;color:#fff;border-radius:5px;padding:2px 6px;text-align:center;white-space:nowrap}
+  .lchip{font-size:10px;font-weight:700;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15;width:100%}
   .lchip.out{opacity:.5;text-decoration:line-through}
   .lchip.in{outline:2px dashed #fff;outline-offset:-3px}
   .ubox .rq{display:block;font-size:8px;font-weight:800;margin-top:1px;background:rgba(0,0,0,.28);border-radius:3px;padding:0 3px;color:#fff}
@@ -273,7 +273,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v12 · 2026-07-06";
+const APP_VERSION="v13 · 2026-07-06";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
