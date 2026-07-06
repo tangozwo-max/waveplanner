@@ -766,7 +766,11 @@ document.getElementById("authSignUp").onclick=async()=>{
   if(!data.session) authMsg("✅ Account created. Check your email to confirm, then sign in.");
   // if a session came back, onAuthStateChange starts the app
 };
-document.getElementById("signOutBtn").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
+document.getElementById("signOutBtn").onclick=async()=>{
+  try{ await sb.auth.signOut({scope:"local"}); }
+  catch(e){ /* clear locally regardless of server response */ }
+  finally{ authStarted=false; location.reload(); }
+};
 
 /* ---------- boot ---------- */
 async function start(){
