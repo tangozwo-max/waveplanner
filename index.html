@@ -263,7 +263,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v8 · 2026-07-06";
+const APP_VERSION="v9 · 2026-07-06";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Advanced","Expert"];
@@ -771,10 +771,15 @@ document.getElementById("authSignUp").onclick=async()=>{
   if(!data.session) authMsg("✅ Account created. Check your email to confirm, then sign in.");
   // if a session came back, onAuthStateChange starts the app
 };
-document.getElementById("signOutBtn").onclick=async()=>{
-  try{ await sb.auth.signOut({scope:"local"}); }
-  catch(e){ /* clear locally regardless of server response */ }
-  finally{ authStarted=false; location.reload(); }
+document.getElementById("signOutBtn").onclick=()=>{
+  authStarted=false;
+  // fire-and-forget the server revoke (don't await — it can hang and block reload)
+  try{ sb.auth.signOut({scope:"local"}); }catch(e){}
+  // deterministically drop the persisted session, then hard-redirect to the login screen
+  try{
+    Object.keys(localStorage).forEach(k=>{ if(k.startsWith("sb-")||k.toLowerCase().includes("supabase")) localStorage.removeItem(k); });
+  }catch(e){}
+  location.replace(location.pathname);
 };
 
 /* ---------- boot ---------- */
