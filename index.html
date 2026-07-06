@@ -85,23 +85,22 @@
   .tag.update{background:#fef9c3;color:#854d0e}
   .tag.missing{background:#fee2e2;color:#991b1b}
   .tag.unchanged{background:#eef2f4;color:#64748b}
-  /* per-user cell columns */
+  /* per-slot cell: one wave type, people below by fixed position (A left, T right) */
   .daycount{margin-top:3px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:14px}
   .daycount .dc{font-size:9px;font-weight:800;color:#fff;border-radius:5px;padding:0 4px;line-height:14px}
-  .cellrow{display:flex;flex-wrap:wrap;gap:3px;align-items:stretch}
-  .ubox{flex:1 1 44%;min-width:56px;display:flex;flex-direction:column;gap:2px;padding:1px}
-  .ubox.a-l{align-items:flex-start}
-  .ubox.a-c{align-items:center}
-  .ubox.a-r{align-items:flex-end}
-  .ubox[data-p]{cursor:pointer}
-  .ubox.blank{opacity:0}
-  .ubox.addself{align-items:center;justify-content:center;color:#9aa7ad;border:1px dashed #cdd8dd;border-radius:6px;cursor:pointer;font-size:12px;min-height:24px}
-  .ubox.addself:hover{color:var(--navy);border-color:var(--navy);background:#eef4f6}
-  .ubadge{font-size:10px;font-weight:800;color:#fff;border-radius:4px;padding:0 5px;line-height:15px}
-  .lchip{font-size:10px;font-weight:700;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15;width:100%}
-  .lchip.out{opacity:.5;text-decoration:line-through}
-  .lchip.in{outline:2px dashed #fff;outline-offset:-3px}
-  .ubox .rq{display:block;font-size:8px;font-weight:800;margin-top:1px;background:rgba(0,0,0,.28);border-radius:3px;padding:0 3px;color:#fff}
+  .cellwrap{display:flex;flex-direction:column;gap:3px}
+  .lgroup{display:flex;flex-direction:column;gap:2px}
+  .lgroup.out{opacity:.55}
+  .lgroup.out .lty{text-decoration:line-through}
+  .lgroup.in .lty{outline:2px dashed #cbd5e1;outline-offset:-2px}
+  .lty{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+  .lrow{display:flex;gap:3px}
+  .uslot{flex:1 1 0;display:flex;min-width:0}
+  .uslot.a-l{justify-content:flex-start}
+  .uslot.a-c{justify-content:center}
+  .uslot.a-r{justify-content:flex-end}
+  .u{font-size:11px;font-weight:800;color:#fff;border-radius:5px;padding:1px 6px;white-space:nowrap;cursor:pointer}
+  .u .rq{font-size:8px;font-weight:800;margin-left:2px}
   /* auth gate */
   .authgate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .authgate.show{display:flex}
@@ -273,7 +272,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v14 · 2026-07-06";
+const APP_VERSION="v15 · 2026-07-06";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -427,25 +426,34 @@ function render(){
     days.forEach(d=>{
       const cb=bookings.filter(b=>b.date===d&&b.time===tm);
       if(!cb.length){ h+=`<td class='slot empty' data-d='${d}' data-t='${tm}'></td>`; return; }
-      let inner="<div class='cellrow'>";
-      gridSurfers.forEach((s,idx)=>{
-        const b=cb.find(x=>x.surfer_id===s.id);
-        const align=idx===0?"a-l":(idx===gridSurfers.length-1?"a-r":"a-c");
-        if(b){
-          const L=LEVELS[b.level]||{abbr:b.level,color:"#555"};
-          const cls=b.status==="out"?" out":b.status==="in"?" in":"";
-          const tag=b.status==="out"?"<span class='rq'>⟲ out</span>":b.status==="in"?"<span class='rq'>✚ in</span>":"";
-          const mine=currentSurfer&&s.id===currentSurfer.id?" mine":"";
-          const tip=`${b.name}${b.ref?" · Ref "+b.ref:""}`;
-          inner+=`<div class='ubox ${align}${mine}' data-p='${s.code}' title="${tip}">`+
-                   `<span class='ubadge' style='background:${userColorById[s.id]}'>${s.code}</span>`+
-                   `<span class='lchip${cls}' style='background:${L.color}'>${L.abbr}${b.side?" "+b.side:""}${tag}</span>`+
-                 `</div>`;
-        }else{
-          const isMe=currentSurfer&&s.id===currentSurfer.id;
-          inner+=`<div class='ubox ${align} ${isMe?"addself":"blank"}' ${isMe?"data-addself='1'":""}>${isMe?"＋":""}</div>`;
-        }
+      // group by wave type (shown once per slot); order by level difficulty
+      const levelOrder=Object.keys(LEVELS);
+      const order=[], groups={};
+      cb.forEach(b=>{ if(!groups[b.level]){groups[b.level]=[];order.push(b.level);} groups[b.level].push(b); });
+      order.sort((a,b)=>levelOrder.indexOf(a)-levelOrder.indexOf(b));
+      let inner="<div class='cellwrap'>";
+      order.forEach(level=>{
+        const L=LEVELS[level]||{abbr:level,color:"#555"};
+        const grp=groups[level];
+        const st=[...new Set(grp.map(b=>b.status||""))];
+        const gcls=(st.length===1)?({out:" out",in:" in"}[st[0]]||""):"";
+        let people="";
+        gridSurfers.forEach((s,idx)=>{
+          const b=grp.find(x=>x.surfer_id===s.id);
+          const align=idx===0?"a-l":(idx===gridSurfers.length-1?"a-r":"a-c");
+          if(b){
+            const tag=b.status==="out"?"<span class='rq'>⟲</span>":b.status==="in"?"<span class='rq'>✚</span>":"";
+            const mine=currentSurfer&&s.id===currentSurfer.id?" mine":"";
+            const tip=`${b.name}${b.side?" "+(b.side==="L"?"Left":"Right"):""}${b.ref?" · Ref "+b.ref:""}`;
+            people+=`<span class='uslot ${align}'><b class='u${mine}' data-p='${s.code}' style='background:${userColorById[s.id]}' title="${tip}">${s.code}${b.side?" "+b.side:""}${tag}</b></span>`;
+          }else{
+            people+=`<span class='uslot ${align}'></span>`;
+          }
+        });
+        inner+=`<div class='lgroup${gcls}'><div class='lty' style='background:${L.color}'>${L.abbr}</div><div class='lrow'>${people}</div></div>`;
       });
+      const iHave=currentSurfer&&cb.some(b=>b.surfer_id===currentSurfer.id);
+      if(currentSurfer&&!iHave) inner+="<div class='addp' data-addself='1'>＋ add</div>";
       inner+="</div>";
       h+=`<td class='slot' data-d='${d}' data-t='${tm}'>${inner}</td>`;
     });
