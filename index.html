@@ -16,6 +16,7 @@
   header .sub{opacity:.7;font-size:13px}
   header .spacer{flex:1}
   header .me{font-size:13px;opacity:.9}
+  header .ver{font-size:11px;opacity:.55;font-variant-numeric:tabular-nums;letter-spacing:.3px}
   header button{padding:7px 12px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
   .wrap{padding:18px 22px 60px}
   .controls{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px}
@@ -121,6 +122,7 @@
   <h1>🌊 THE WAVE · Surf Planner</h1>
   <span class="sub">Bristol</span>
   <span class="spacer"></span>
+  <span class="ver" id="verLabel"></span>
   <span class="me" id="meLabel"></span>
   <button id="signOutBtn">Sign out</button>
 </header>
@@ -260,6 +262,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="./config.js"></script>
 <script>
+/* ---------- version (shown in the header to verify the live build) ---------- */
+const APP_VERSION="v8 · 2026-07-06";
+
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Advanced","Expert"];
 const SLOT_TIMES = (()=>{const a=[];for(let h=6;h<=21;h++)a.push(String(h).padStart(2,"0")+":00");return a;})();
@@ -826,6 +831,7 @@ async function boot(){
     }
   });
 }
+document.getElementById("verLabel").textContent=APP_VERSION;
 boot();
 </script>
 </body></html>
