@@ -78,7 +78,11 @@ security definer
 set search_path = waveplanner, public
 as $$
 declare
-  v_name text := coalesce(nullif(new.raw_user_meta_data->>'name',''), split_part(new.email,'@',1));
+  -- Google sends full_name / name; email sign-up sends name. Fall back to the email local-part.
+  v_name text := coalesce(
+                   nullif(new.raw_user_meta_data->>'full_name',''),
+                   nullif(new.raw_user_meta_data->>'name',''),
+                   split_part(new.email,'@',1));
   v_code text := upper(coalesce(nullif(new.raw_user_meta_data->>'code',''), left(v_name,1)));
 begin
   -- make the code unique if it collides

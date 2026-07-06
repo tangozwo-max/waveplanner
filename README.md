@@ -27,8 +27,25 @@ A trigger on `auth.users` auto-creates a `surfers` row on sign-up.
 2. Run [`supabase/seed.sql`](supabase/seed.sql) to load the wave levels.
 3. **Project Settings → API → Exposed schemas**: add **`waveplanner`** (and to the
    "Extra search path"). Save. *(Without this the REST API can't reach the tables.)*
-4. **Authentication → Providers → Email**: enable it. For quick testing you can turn
-   **off** "Confirm email" so new accounts can sign in immediately.
+4. **Authentication → Providers → Google**: enable it (see "Google sign-in" below).
+   Email sign-in still works as a fallback via the "Sign in with email instead" link.
+
+### Google sign-in setup
+
+1. **Supabase → Authentication → Providers → Google** → toggle on. Note the shown
+   **Callback URL**: `https://stfbdglkexcsgtfphvha.supabase.co/auth/v1/callback`.
+2. **Google Cloud Console** (https://console.cloud.google.com) → APIs & Services:
+   - Configure the **OAuth consent screen** (User type: External; add yourself + Tim as
+     test users, or publish the app).
+   - **Credentials → Create Credentials → OAuth client ID → Web application**:
+     - **Authorized JavaScript origins**: your Vercel URL (and `http://localhost:3000` for local).
+     - **Authorized redirect URIs**: `https://stfbdglkexcsgtfphvha.supabase.co/auth/v1/callback`
+   - Copy the **Client ID** and **Client secret**.
+3. Paste Client ID + secret into the Supabase Google provider and **Save**.
+4. **Supabase → Authentication → URL Configuration**:
+   - **Site URL** = your Vercel URL.
+   - **Redirect URLs** = add your Vercel URL and your local dev URL.
+     (The app redirects back to `window.location.origin + pathname`.)
 
 ## Local development
 
