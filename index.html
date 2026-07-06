@@ -49,7 +49,7 @@
   th,td{border:1px solid var(--line);text-align:center}
   thead th{background:var(--navy);color:#fff;font-size:12px;font-weight:600;padding:8px 6px}
   th.time,td.time{background:#eef3f5;font-weight:700;font-size:12px;width:64px;white-space:nowrap;color:#3a4a52}
-  td.slot{cursor:pointer;padding:3px;vertical-align:top;min-width:132px}
+  td.slot{cursor:pointer;padding:3px;vertical-align:top;min-width:106px}
   td.slot.empty{background:var(--empty);height:40px}
   td.slot.empty:hover{background:var(--emptyhover)}
   .cellwrap{display:flex;flex-direction:column;gap:3px}
@@ -94,13 +94,12 @@
   .lgroup.out .lty{text-decoration:line-through}
   .lgroup.in .lty{outline:2px dashed #cbd5e1;outline-offset:-2px}
   .lty{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
-  .lrow{display:flex;gap:3px}
-  .uslot{flex:1 1 0;display:flex;min-width:0}
-  .uslot.a-l{justify-content:flex-start}
-  .uslot.a-c{justify-content:center}
-  .uslot.a-r{justify-content:flex-end}
+  .sides{display:flex;gap:3px}
+  .side{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;border:1px solid var(--line);border-radius:5px;padding:1px 1px 2px}
+  .slab{font-size:8px;font-weight:800;letter-spacing:.4px;color:#93a0a8}
+  .sbox{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;min-height:15px;width:100%}
   .u{font-size:11px;font-weight:800;color:#fff;border-radius:5px;padding:1px 6px;white-space:nowrap;cursor:pointer}
-  .u .rq{font-size:8px;font-weight:800;margin-left:2px}
+  .u .rq{font-size:8px;font-weight:800;margin-left:1px}
   /* auth gate */
   .authgate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .authgate.show{display:flex}
@@ -272,7 +271,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v15 · 2026-07-06";
+const APP_VERSION="v16 · 2026-07-06";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -432,25 +431,30 @@ function render(){
       cb.forEach(b=>{ if(!groups[b.level]){groups[b.level]=[];order.push(b.level);} groups[b.level].push(b); });
       order.sort((a,b)=>levelOrder.indexOf(a)-levelOrder.indexOf(b));
       let inner="<div class='cellwrap'>";
+      const codeOf=id=>(surfersById[id]||{code:"?"}).code;
+      const byCode=(a,b)=>codeOf(a.surfer_id).localeCompare(codeOf(b.surfer_id));
+      const pill=b=>{
+        const tag=b.status==="out"?"<span class='rq'>⟲</span>":b.status==="in"?"<span class='rq'>✚</span>":"";
+        const mine=currentSurfer&&b.surfer_id===currentSurfer.id?" mine":"";
+        const code=codeOf(b.surfer_id);
+        const tip=`${b.name}${b.side?" "+(b.side==="L"?"Left":"Right"):""}${b.ref?" · Ref "+b.ref:""}`;
+        return `<b class='u${mine}' data-p='${code}' style='background:${userColorById[b.surfer_id]||"#555"}' title="${tip}">${code}${tag}</b>`;
+      };
       order.forEach(level=>{
         const L=LEVELS[level]||{abbr:level,color:"#555"};
         const grp=groups[level];
         const st=[...new Set(grp.map(b=>b.status||""))];
         const gcls=(st.length===1)?({out:" out",in:" in"}[st[0]]||""):"";
-        let people="";
-        gridSurfers.forEach((s,idx)=>{
-          const b=grp.find(x=>x.surfer_id===s.id);
-          const align=idx===0?"a-l":(idx===gridSurfers.length-1?"a-r":"a-c");
-          if(b){
-            const tag=b.status==="out"?"<span class='rq'>⟲</span>":b.status==="in"?"<span class='rq'>✚</span>":"";
-            const mine=currentSurfer&&s.id===currentSurfer.id?" mine":"";
-            const tip=`${b.name}${b.side?" "+(b.side==="L"?"Left":"Right"):""}${b.ref?" · Ref "+b.ref:""}`;
-            people+=`<span class='uslot ${align}'><b class='u${mine}' data-p='${s.code}' style='background:${userColorById[s.id]}' title="${tip}">${s.code}${b.side?" "+b.side:""}${tag}</b></span>`;
-          }else{
-            people+=`<span class='uslot ${align}'></span>`;
-          }
-        });
-        inner+=`<div class='lgroup${gcls}'><div class='lty' style='background:${L.color}'>${L.abbr}</div><div class='lrow'>${people}</div></div>`;
+        const lefts=grp.filter(b=>b.side==="L").sort(byCode);
+        const rights=grp.filter(b=>b.side==="R").sort(byCode);
+        const none=grp.filter(b=>b.side!=="L"&&b.side!=="R").sort(byCode);   // no-side -> left bucket
+        inner+=`<div class='lgroup${gcls}'>`+
+                 `<div class='lty' style='background:${L.color}'>${L.abbr}</div>`+
+                 `<div class='sides'>`+
+                   `<div class='side'><div class='slab'>LEFT</div><div class='sbox'>${lefts.map(pill).join("")+none.map(pill).join("")}</div></div>`+
+                   `<div class='side'><div class='slab'>RIGHT</div><div class='sbox'>${rights.map(pill).join("")}</div></div>`+
+                 `</div>`+
+               `</div>`;
       });
       const iHave=currentSurfer&&cb.some(b=>b.surfer_id===currentSurfer.id);
       if(currentSurfer&&!iHave) inner+="<div class='addp' data-addself='1'>＋ add</div>";
