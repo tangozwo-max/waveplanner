@@ -1,13 +1,14 @@
--- Seed / update the wave levels (colors match the original planner).
+-- Seed / update the wave levels. Colors are a muted, flat difficulty ramp
+-- (green -> teal -> blue -> indigo -> violet -> mauve -> rose), easy to hard.
 -- Run after 0001_init.sql. Safe to re-run — it upserts by name.
 insert into waveplanner.levels (name, abbr, color, sort_order) values
-  ('Advanced',      'Advanced',      '#16a34a', 1),
-  ('Advanced Plus', 'Advanced Plus', '#0d9488', 2),
-  ('Expert',        'Expert',        '#ea580c', 3),
-  ('Expert Plus',   'Expert Plus',   '#a16207', 4),
-  ('Expert Turns',  'Expert Turns',  '#dc2626', 5),
-  ('Expert Barrel', 'Expert Barrel', '#6d28d9', 6),
-  ('Barrel Medley', 'Barrel Medley', '#be185d', 7)
+  ('Advanced',      'Advanced',      '#5a8a74', 1),   -- muted green
+  ('Advanced Plus', 'Advanced Plus', '#4a8489', 2),   -- muted teal
+  ('Expert',        'Expert',        '#4d7aa0', 3),   -- muted blue
+  ('Expert Turns',  'Expert Turns',  '#5b6ba0', 4),   -- muted indigo
+  ('Expert Barrel', 'Expert Barrel', '#79609b', 5),   -- muted violet
+  ('Expert Plus',   'Expert Plus',   '#965f88', 6),   -- muted mauve
+  ('Barrel Medley', 'Barrel Medley', '#a05a64', 7)    -- muted rose
 on conflict (name) do update
   set abbr = excluded.abbr,
       color = excluded.color,

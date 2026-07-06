@@ -71,6 +71,15 @@
   .modal .actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px}
   .footnote{margin-top:22px;font-size:12px;color:#6b7c84;line-height:1.6;max-width:760px}
   code{background:#e8eef1;padding:1px 5px;border-radius:4px;font-size:12px}
+  .difftable{border-collapse:collapse;width:100%;font-size:12px}
+  .difftable th,.difftable td{border:1px solid var(--line);padding:5px 8px;text-align:left;white-space:nowrap}
+  .difftable th{background:#eef3f5;position:sticky;top:0;z-index:1}
+  .difftable select{padding:3px 6px;font-size:12px;border:1px solid var(--line);border-radius:6px}
+  .tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+  .tag.add{background:#dcfce7;color:#166534}
+  .tag.update{background:#fef9c3;color:#854d0e}
+  .tag.missing{background:#fee2e2;color:#991b1b}
+  .tag.unchanged{background:#eef2f4;color:#64748b}
   /* auth gate */
   .authgate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .authgate.show{display:flex}
@@ -231,6 +240,24 @@
   </div>
 </div>
 
+<!-- Import review modal -->
+<div class="modal-bg" id="importBg">
+  <div class="modal" style="width:760px;max-width:96vw">
+    <h3>Review import</h3>
+    <div class="who" id="importSummary"></div>
+    <div style="max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
+      <table class="difftable" id="importTable"></table>
+    </div>
+    <div class="actions" style="margin-top:14px;align-items:center">
+      <button class="ghost" id="importSkipUnchanged" title="Hide rows that are identical">Hide unchanged</button>
+      <div style="display:flex;gap:8px">
+        <button class="ghost" id="importCancel">Cancel</button>
+        <button id="importCommit">Commit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Change request email modal -->
 <div class="modal-bg" id="emailBg">
   <div class="modal" style="width:540px">
@@ -263,7 +290,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v10 · 2026-07-06";
+const APP_VERSION="v11 · 2026-07-06";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -598,13 +625,87 @@ async function handleFiles(files){
     try{ const text=await readPdf(f); parseText(text).forEach(r=>all.push(r)); }
     catch(e){ console.error(e); setStatus("⚠️ Could not read "+f.name+" ("+e.message+")",true); }
   }
+  if(!all.length){ setStatus("No bookings found in those PDF(s).",true); return; }
+  openImportPreview(all,`${all.length} row(s) read from ${files.length} PDF(s)`);
+}
+
+/* ---------- import preview / reconciliation ---------- */
+let importRows=[], importHideUnchanged=false;
+function keyDT(b){return b.date+"|"+b.time;}
+function sameBooking(a,b){return a.level===b.level && (a.side||"")===(b.side||"") && (a.ref||"")===(b.ref||"");}
+function descOf(x){ if(!x) return "—"; return `${x.level}${x.side?" "+x.side:""}${x.ref?" · Ref "+x.ref:""}`; }
+function computeImportDiff(parsed){
+  const pmap=new Map(); parsed.forEach(p=>pmap.set(keyDT(p),p));           // dedupe, last wins
+  const mine=bookings.filter(b=>currentSurfer&&b.surfer_id===currentSurfer.id);
+  const mineMap=new Map(mine.map(b=>[keyDT(b),b]));
+  const rows=[];
+  pmap.forEach((p,k)=>{
+    const ex=mineMap.get(k);
+    if(!ex) rows.push({type:"add",key:k,p,ex:null});
+    else if(!sameBooking(p,ex)) rows.push({type:"update",key:k,p,ex});
+    else rows.push({type:"unchanged",key:k,p,ex});
+  });
+  mineMap.forEach((ex,k)=>{ if(!pmap.has(k)) rows.push({type:"missing",key:k,p:null,ex}); });
+  rows.sort((a,b)=>((a.p||a.ex).date+(a.p||a.ex).time).localeCompare((b.p||b.ex).date+(b.p||b.ex).time));
+  return rows;
+}
+function openImportPreview(parsed,note){
+  if(!currentSurfer){ setStatus("Sign in before importing.",true); return; }
+  importRows=computeImportDiff(parsed);
+  importHideUnchanged=false;
+  document.getElementById("importSkipUnchanged").textContent="Hide unchanged";
+  renderImportPreview(note);
+  document.getElementById("importBg").classList.add("show");
+}
+function renderImportPreview(note){
+  const c={add:0,update:0,missing:0,unchanged:0};
+  importRows.forEach(r=>c[r.type]++);
+  document.getElementById("importSummary").textContent=
+    `${note?note+" — ":""}${c.add} new · ${c.update} changed · ${c.missing} not in import · ${c.unchanged} unchanged`;
+  let h="<thead><tr><th>Date</th><th>Time</th><th>Session</th><th>Change</th><th>Action</th></tr></thead><tbody>";
+  importRows.forEach((r,i)=>{
+    if(importHideUnchanged && r.type==="unchanged") return;
+    const base=r.p||r.ex;
+    const dmy=base.date.split("-").reverse().join("/");
+    let change="", action="";
+    if(r.type==="add"){ change="<span class='tag add'>new</span>";
+      action=`<select data-i='${i}'><option value='add' selected>Add</option><option value='skip'>Skip</option></select>`; }
+    else if(r.type==="update"){ change=`<span class='tag update'>changed</span> ${descOf(r.ex)} → ${descOf(r.p)}`;
+      action=`<select data-i='${i}'><option value='update' selected>Update</option><option value='skip'>Skip</option></select>`; }
+    else if(r.type==="missing"){ change="<span class='tag missing'>not in import</span>";
+      action=`<select data-i='${i}'><option value='keep' selected>Keep</option><option value='delete'>Delete</option></select>`; }
+    else { change="<span class='tag unchanged'>no change</span>"; action="—"; }
+    h+=`<tr><td>${dmy}</td><td>${base.time}</td><td>${descOf(r.p||r.ex)}</td><td>${change}</td><td>${action}</td></tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("importTable").innerHTML=h;
+}
+async function commitImport(){
+  const selects=[...document.querySelectorAll("#importTable select[data-i]")];
+  const toUpsert=[], toDelete=[];
+  selects.forEach(sel=>{
+    const r=importRows[+sel.dataset.i]; const act=sel.value;
+    if(act==="add") toUpsert.push({...r.p,status:""});
+    else if(act==="update") toUpsert.push({...r.p,status:r.ex.status||""});   // keep any change-request flag
+    else if(act==="delete") toDelete.push(r.ex);
+  });
   try{
-    const n=await upsertMany(all);
+    setStatus("Committing import…");
+    if(toUpsert.length) await upsertMany(toUpsert);
+    for(const b of toDelete){ if(b.id) await deleteBooking(b.id); }
     render();
-    if(n) setStatus(`✅ Imported ${n} of your booking(s) from ${files.length} file(s).`);
-    else setStatus("No bookings found in those PDF(s).",true);
+    document.getElementById("importBg").classList.remove("show");
+    setStatus(`✅ Import committed — ${toUpsert.length} added/updated, ${toDelete.length} deleted.`);
   }catch(e){ setStatus("⚠️ Import failed: "+(e.message||e),true); }
 }
+document.getElementById("importCancel").onclick=()=>document.getElementById("importBg").classList.remove("show");
+document.getElementById("importBg").addEventListener("click",e=>{if(e.target.id==="importBg")document.getElementById("importBg").classList.remove("show");});
+document.getElementById("importCommit").onclick=commitImport;
+document.getElementById("importSkipUnchanged").onclick=()=>{
+  importHideUnchanged=!importHideUnchanged;
+  document.getElementById("importSkipUnchanged").textContent=importHideUnchanged?"Show unchanged":"Hide unchanged";
+  renderImportPreview();
+};
 
 /* ---------- toolbar ---------- */
 const fi=document.getElementById("fileinput");
@@ -625,16 +726,12 @@ document.getElementById("pasteBtn").onclick=()=>{
 };
 document.getElementById("pasteCancel").onclick=()=>document.getElementById("pasteBg").classList.remove("show");
 document.getElementById("pasteBg").addEventListener("click",e=>{if(e.target.id==="pasteBg")document.getElementById("pasteBg").classList.remove("show");});
-document.getElementById("pasteImport").onclick=async()=>{
+document.getElementById("pasteImport").onclick=()=>{
   const rows=parsePasted(document.getElementById("pasteArea").value);
   if(!rows.length){setStatus("No bookings found in the pasted text.",true);return;}
-  try{
-    const n=await upsertMany(rows);
-    render();
-    document.getElementById("pasteBg").classList.remove("show");
-    document.getElementById("pasteArea").value="";
-    setStatus(`✅ Imported ${n} booking(s) from the list.`);
-  }catch(e){ setStatus("⚠️ Import failed: "+(e.message||e),true); }
+  document.getElementById("pasteBg").classList.remove("show");
+  document.getElementById("pasteArea").value="";
+  openImportPreview(rows,`${rows.length} row(s) pasted`);
 };
 
 /* change request email (only your own out/in) */
@@ -826,14 +923,18 @@ async function boot(){
   if(params.get("error_description")){ cleanUrl(); showAuth("⚠️ "+params.get("error_description")); }
   // onAuthStateChange fires INITIAL_SESSION on load (with the persisted session or null)
   // and SIGNED_IN after a Google redirect — it is the single source of truth here.
-  sb.auth.onAuthStateChange(async(_event,s)=>{
+  sb.auth.onAuthStateChange((_event,s)=>{
     session=s;
-    if(s){
-      if(!authStarted){ authStarted=true; cleanUrl(); await start(); }
-    }else{
-      authStarted=false;
-      if(!returning) showAuth();
-    }
+    // Defer: running other supabase calls synchronously inside this callback
+    // deadlocks on the auth lock, which breaks data loading on refresh.
+    setTimeout(async()=>{
+      if(s){
+        if(!authStarted){ authStarted=true; cleanUrl(); await start(); }
+      }else{
+        authStarted=false;
+        if(!returning) showAuth();
+      }
+    },0);
   });
 }
 document.getElementById("verLabel").textContent=APP_VERSION;
