@@ -316,6 +316,27 @@ async function loadSurfers(){
   surfersById={};data.forEach(s=>surfersById[s.id]={code:s.code,name:s.name,user_id:s.user_id});
   currentSurfer=data.find(s=>s.user_id===session.user.id)||null;
 }
+// Self-heal: if the signed-in user has no surfer row (e.g. the account predates the
+// sign-up trigger), create one now. Allowed by RLS since user_id = auth.uid().
+async function ensureSurfer(){
+  const meta=session.user.user_metadata||{};
+  const email=session.user.email||"";
+  const name=((meta.full_name||meta.name||meta.email||email.split("@")[0]||"Surfer")+"").trim()||"Surfer";
+  const base=(name[0]||"S").toUpperCase();
+  const tries=[base, name.slice(0,2).toUpperCase(), base+"1", base+"2", base+Math.floor(Math.random()*90+10)];
+  for(const code of tries){
+    const {data,error}=await sb.from("surfers")
+      .insert({user_id:session.user.id,code,name}).select().single();
+    if(!error) return data;
+    if(error.code==="23505"){                              // unique violation
+      const {data:ex}=await sb.from("surfers").select("*").eq("user_id",session.user.id).maybeSingle();
+      if(ex) return ex;                                    // row already exists -> use it
+      continue;                                            // code collided -> try next code
+    }
+    throw error;
+  }
+  throw new Error("Could not create your surfer profile (name/code collision).");
+}
 async function loadBookings(){
   const {data,error}=await sb.from("bookings").select("*");
   if(error) throw error;
@@ -753,13 +774,17 @@ async function start(){
   try{
     await loadLevels();
     await loadSurfers();
+    if(!currentSurfer){                       // account predates the trigger -> create the row now
+      const s=await ensureSurfer();
+      currentSurfer=s;
+      surfersById[s.id]={code:s.code,name:s.name,user_id:s.user_id};
+    }
     await loadBookings();
   }catch(e){
     setStatus("⚠️ Could not load data: "+(e.message||e)+"  (Is the `waveplanner` schema exposed in Supabase API settings?)",true);
     return;
   }
   document.getElementById("meLabel").textContent=currentSurfer?`Signed in as ${currentSurfer.name} (${currentSurfer.code})`:"Signed in";
-  if(!currentSurfer) setStatus("No surfer profile found for your account — check the sign-up trigger ran.",true);
   if(bookings.length){
     const dates=bookings.map(b=>b.date).sort();
     document.getElementById("startDate").value=dates[0];
