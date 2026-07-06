@@ -11,13 +11,18 @@
   *{box-sizing:border-box}
   html,body{margin:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-  header{background:var(--navy);color:#fff;padding:18px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  header h1{font-size:20px;margin:0;letter-spacing:.5px;font-weight:700}
-  header .sub{opacity:.7;font-size:13px}
+  header{background:var(--navy);color:#fff;padding:9px 14px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  header h1{font-size:15px;margin:0 6px 0 0;letter-spacing:.3px;font-weight:700;white-space:nowrap}
   header .spacer{flex:1}
-  header .me{font-size:13px;opacity:.9}
-  header .ver{font-size:11px;opacity:.55;font-variant-numeric:tabular-nums;letter-spacing:.3px}
-  header button{padding:7px 12px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+  header .me{font-size:12px;opacity:.9;white-space:nowrap}
+  header .ver{font-size:10px;opacity:.5;font-variant-numeric:tabular-nums;letter-spacing:.3px;white-space:nowrap}
+  header button,header .filepick{padding:5px 9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;line-height:1.3}
+  header .filepick{background:#fff;color:var(--navy);border:1px solid var(--line);display:inline-flex;align-items:center;gap:5px}
+  header .filepick.drag{background:#eef6f9;border-color:var(--navy)}
+  header .ghost{background:#fff;color:var(--navy);border:1px solid #cfe0e6}
+  header .warn{background:#fff;color:#c0392b;border:1px solid #e2b6b0}
+  header #signOutBtn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
+  header button:hover,header .filepick:hover{opacity:.9}
   .wrap{padding:18px 22px 60px}
   .controls{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px}
   .ctl{display:flex;flex-direction:column;gap:5px}
@@ -80,6 +85,23 @@
   .tag.update{background:#fef9c3;color:#854d0e}
   .tag.missing{background:#fee2e2;color:#991b1b}
   .tag.unchanged{background:#eef2f4;color:#64748b}
+  /* per-user cell columns */
+  .daycount{margin-top:3px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:14px}
+  .daycount .dc{font-size:9px;font-weight:800;color:#fff;border-radius:5px;padding:0 4px;line-height:14px}
+  .cellrow{display:flex;flex-wrap:wrap;gap:3px;align-items:stretch}
+  .ubox{flex:1 1 30%;min-width:52px;display:flex;flex-direction:column;gap:2px;padding:1px}
+  .ubox.a-l{align-items:flex-start}
+  .ubox.a-c{align-items:center}
+  .ubox.a-r{align-items:flex-end}
+  .ubox[data-p]{cursor:pointer}
+  .ubox.blank{opacity:0}
+  .ubox.addself{align-items:center;justify-content:center;color:#9aa7ad;border:1px dashed #cdd8dd;border-radius:6px;cursor:pointer;font-size:12px;min-height:24px}
+  .ubox.addself:hover{color:var(--navy);border-color:var(--navy);background:#eef4f6}
+  .ubadge{font-size:10px;font-weight:800;color:#fff;border-radius:4px;padding:0 5px;line-height:15px}
+  .lchip{font-size:11px;font-weight:700;color:#fff;border-radius:5px;padding:2px 6px;text-align:center;white-space:nowrap}
+  .lchip.out{opacity:.5;text-decoration:line-through}
+  .lchip.in{outline:2px dashed #fff;outline-offset:-3px}
+  .ubox .rq{display:block;font-size:8px;font-weight:800;margin-top:1px;background:rgba(0,0,0,.28);border-radius:3px;padding:0 3px;color:#fff}
   /* auth gate */
   .authgate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .authgate.show{display:flex}
@@ -128,8 +150,14 @@
 
 <!-- ===== App ===== -->
 <header>
-  <h1>🌊 THE WAVE · Surf Planner</h1>
-  <span class="sub">Bristol</span>
+  <h1>🌊 Wave Planner</h1>
+  <label class="filepick" id="filepick" title="Add your booking PDFs (or drop them here)">
+    📄 PDFs<input id="fileinput" type="file" accept="application/pdf" multiple hidden>
+  </label>
+  <button class="ghost" id="emailBtn" title="Build a change-request email for slots you've flagged to move out / book in">✉️ Change request</button>
+  <button class="ghost" id="refreshBtn" title="Reload the latest sessions from the server">↻</button>
+  <button class="ghost" id="printBtn">Print</button>
+  <button class="warn" id="clearBtn" title="Delete all of your own bookings">Clear mine</button>
   <span class="spacer"></span>
   <span class="ver" id="verLabel"></span>
   <span class="me" id="meLabel"></span>
@@ -137,30 +165,6 @@
 </header>
 
 <div class="wrap">
-  <div class="controls">
-    <label class="filepick" id="filepick">
-      📄 <span>Drop or click to add your booking PDFs</span>
-      <input id="fileinput" type="file" accept="application/pdf" multiple hidden>
-    </label>
-    <div class="ctl">
-      <label>Week start</label>
-      <input id="startDate" type="date">
-    </div>
-    <div class="ctl">
-      <label>Days</label>
-      <input id="numDays" type="number" min="1" max="31" value="7" style="width:70px">
-    </div>
-    <button class="ghost" id="pasteBtn" title="Paste your Wave reservation list (includes Left/Right)">📋 Paste booking list</button>
-    <button class="ghost" id="emailBtn" title="Build an email to the Wave for all slots you've flagged to move out / book in">✉️ Change request</button>
-    <button class="ghost" id="fitBtn" title="Set range to cover all bookings">Fit to bookings</button>
-    <button class="ghost" id="refreshBtn" title="Reload the latest sessions from the server">↻ Refresh</button>
-    <button class="ghost" id="exportJson">Export data (JSON)</button>
-    <button class="ghost" id="importJsonBtn">Import data</button>
-    <input id="importJson" type="file" accept="application/json" hidden>
-    <button class="ghost" id="printBtn">Print</button>
-    <button class="warn" id="clearBtn">Clear my bookings</button>
-  </div>
-
   <div class="legend" id="legend"></div>
   <div class="status" id="status"></div>
   <div class="summary" id="summary"></div>
@@ -219,27 +223,6 @@
   </div>
 </div>
 
-<!-- Paste booking list modal -->
-<div class="modal-bg" id="pasteBg">
-  <div class="modal" style="width:480px">
-    <h3>Paste booking list</h3>
-    <div class="who">Copy the reservation list from your Wave account page and paste it below — this format includes <strong>Left / Right</strong>. Everything is imported as <strong id="pasteAsName">you</strong>.</div>
-    <div class="row">
-      <label>Booking text</label>
-      <textarea id="pasteArea" placeholder="Cancemi Alessandro | RE - Expert Turns Surf Right - Adult
-23 July 2026 at 09:00 AM
-..." style="width:100%;height:180px;padding:10px;border:1px solid var(--line);border-radius:8px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
-    </div>
-    <div class="actions">
-      <span></span>
-      <div style="display:flex;gap:8px">
-        <button class="ghost" id="pasteCancel">Cancel</button>
-        <button id="pasteImport">Import</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Import review modal -->
 <div class="modal-bg" id="importBg">
   <div class="modal" style="width:760px;max-width:96vw">
@@ -290,7 +273,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v11 · 2026-07-06";
+const APP_VERSION="v12 · 2026-07-06";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -316,9 +299,14 @@ let editKey=null;
 function fmtISO(d){return d.toISOString().slice(0,10);}
 function addDays(iso,n){const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return fmtISO(d);}
 function getRangeDays(){
-  const start=document.getElementById("startDate").value||fmtISO(new Date());
-  const n=Math.max(1,Math.min(31,parseInt(document.getElementById("numDays").value||"7",10)));
-  const days=[];for(let i=0;i<n;i++)days.push(addDays(start,i));return days;
+  // auto-size to cover every booking (earliest -> latest); default to a week if none
+  const dates=bookings.map(b=>b.date).filter(Boolean).sort();
+  let start,end;
+  if(dates.length){ start=dates[0]; end=dates[dates.length-1]; }
+  else { start=fmtISO(new Date()); end=addDays(start,6); }
+  const days=[]; let d=start, guard=0;
+  while(d<=end && guard<180){ days.push(d); d=addDays(d,1); guard++; }
+  return days;
 }
 function bookingAt(person,date,time){return bookings.find(b=>b.person===person&&b.date===date&&b.time===time);}
 function setStatus(msg,warn){const s=document.getElementById("status");s.textContent=msg;s.style.color=warn?"#c0392b":"#2e7d32";}
@@ -401,52 +389,62 @@ async function upsertMany(apps){                       // bulk import for the cu
 }
 
 /* ---------- render ---------- */
+const USER_COLORS=["#2563eb","#db2777","#16a34a","#d97706","#7c3aed","#0891b2"];
+let userColorById={}, gridSurfers=[];
+function computeGridSurfers(days){
+  const ids=new Set(bookings.filter(b=>days.includes(b.date)).map(b=>b.surfer_id));
+  if(currentSurfer) ids.add(currentSurfer.id);
+  gridSurfers=[...ids].map(id=>({id,...(surfersById[id]||{code:"?",name:"?"})}))
+                      .sort((a,b)=>(a.code||"").localeCompare(b.code||""));   // A left, T right
+  userColorById={}; gridSurfers.forEach((s,i)=>userColorById[s.id]=USER_COLORS[i%USER_COLORS.length]);
+}
 function render(){
   const days=getRangeDays();
   const timeSet=new Set(SLOT_TIMES);
   bookings.forEach(b=>{ if(days.includes(b.date)) timeSet.add(b.time); });
   const times=[...timeSet].sort();
   const todayISO=fmtISO(new Date());
+  computeGridSurfers(days);
 
   const t=document.getElementById("grid");
   let h="<thead><tr><th class='time'>Time</th>";
   days.forEach(d=>{
     const dt=new Date(d+"T00:00:00");
     const cls=(d===todayISO)?"today":"";
-    h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}</th>`;
+    const cnt=gridSurfers.map(s=>{
+      const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in").length;
+      return n?`<span class='dc' style='background:${userColorById[s.id]}'>${s.code}·${n}</span>`:"";
+    }).join("");
+    h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}<div class='daycount'>${cnt}</div></th>`;
   });
   h+="</tr></thead><tbody>";
 
   times.forEach(tm=>{
     h+=`<tr><td class='time'>${tm}</td>`;
     days.forEach(d=>{
-      const list=bookings.filter(b=>b.date===d&&b.time===tm).sort((a,b)=>a.person.localeCompare(b.person));
-      if(list.length){
-        const order=[], groups={};
-        list.forEach(b=>{ if(!groups[b.level]){groups[b.level]=[];order.push(b.level);} groups[b.level].push(b); });
-        let inner="<div class='cellwrap'>";
-        order.forEach(level=>{
-          const L=LEVELS[level]||{abbr:level,color:"#555"};
-          const grp=groups[level];
-          const st=[...new Set(grp.map(b=>b.status||""))];
-          const gcls=(st.length===1)?({out:" out",in:" in"}[st[0]]||""):"";
-          const tyAttr=grp.length===1?`data-p='${grp[0].person}'`:"";
-          let lines="";
-          grp.forEach(b=>{
-            const dir=b.side||"";
-            const tag=b.status==="out"?"<span class='rq'>⟲ move out</span>"
-                     :b.status==="in"?"<span class='rq'>✚ requested</span>":"";
-            const tip=b.ref?`title='Booking ref ${b.ref}'`:"";
-            const mine=currentSurfer&&b.surfer_id===currentSurfer.id?" mine":"";
-            lines+=`<div class='pd${mine}' data-p='${b.person}' ${tip}>${b.person}${dir?" "+dir:""}${tag}</div>`;
-          });
-          inner+=`<div class='chip${gcls}' style='background:${L.color}'><div class='ty' ${tyAttr}>${L.abbr}</div>${lines}</div>`;
-        });
-        inner+="<div class='addp' data-add='1'>＋ add</div></div>";
-        h+=`<td class='slot' data-d='${d}' data-t='${tm}'>${inner}</td>`;
-      }else{
-        h+=`<td class='slot empty' data-d='${d}' data-t='${tm}'></td>`;
-      }
+      const cb=bookings.filter(b=>b.date===d&&b.time===tm);
+      if(!cb.length){ h+=`<td class='slot empty' data-d='${d}' data-t='${tm}'></td>`; return; }
+      let inner="<div class='cellrow'>";
+      gridSurfers.forEach((s,idx)=>{
+        const b=cb.find(x=>x.surfer_id===s.id);
+        const align=idx===0?"a-l":(idx===gridSurfers.length-1?"a-r":"a-c");
+        if(b){
+          const L=LEVELS[b.level]||{abbr:b.level,color:"#555"};
+          const cls=b.status==="out"?" out":b.status==="in"?" in":"";
+          const tag=b.status==="out"?"<span class='rq'>⟲ out</span>":b.status==="in"?"<span class='rq'>✚ in</span>":"";
+          const mine=currentSurfer&&s.id===currentSurfer.id?" mine":"";
+          const tip=`${b.name}${b.ref?" · Ref "+b.ref:""}`;
+          inner+=`<div class='ubox ${align}${mine}' data-p='${s.code}' title="${tip}">`+
+                   `<span class='ubadge' style='background:${userColorById[s.id]}'>${s.code}</span>`+
+                   `<span class='lchip${cls}' style='background:${L.color}'>${L.abbr}${b.side?" "+b.side:""}${tag}</span>`+
+                 `</div>`;
+        }else{
+          const isMe=currentSurfer&&s.id===currentSurfer.id;
+          inner+=`<div class='ubox ${align} ${isMe?"addself":"blank"}' ${isMe?"data-addself='1'":""}>${isMe?"＋":""}</div>`;
+        }
+      });
+      inner+="</div>";
+      h+=`<td class='slot' data-d='${d}' data-t='${tm}'>${inner}</td>`;
     });
     h+="</tr>";
   });
@@ -456,9 +454,9 @@ function render(){
 
   t.querySelectorAll("td.slot").forEach(td=>{
     td.addEventListener("click",e=>{
-      const pd=e.target.closest("[data-p]");
-      if(pd){ openModal(td.dataset.d,td.dataset.t,pd.dataset.p); return; }
-      if(e.target.closest(".addp") || td.classList.contains("empty")){
+      const box=e.target.closest("[data-p]");
+      if(box){ openModal(td.dataset.d,td.dataset.t,box.dataset.p); return; }
+      if(e.target.closest("[data-addself]") || td.classList.contains("empty")){
         openModal(td.dataset.d,td.dataset.t,null);
       }
     });
@@ -488,9 +486,11 @@ function renderSummary(){
 }
 function renderLegend(){
   const el=document.getElementById("legend");
-  el.innerHTML="<strong style='margin-right:6px'>Levels:</strong>"+
-    Object.entries(LEVELS).map(([name,v])=>`<span class='k'><span class='sw' style='background:${v.color}'></span>${name}</span>`).join("")+
-    "<span class='k' style='margin-left:10px;color:#6b7c84'>click one of your cells to edit</span>";
+  const levelsHtml=Object.entries(LEVELS).map(([name,v])=>`<span class='k'><span class='sw' style='background:${v.color}'></span>${name}</span>`).join("");
+  const usersHtml=gridSurfers.map(s=>`<span class='k'><span class='sw' style='background:${userColorById[s.id]}'></span>${s.name} (${s.code})</span>`).join("");
+  el.innerHTML="<strong style='margin-right:6px'>Levels:</strong>"+levelsHtml+
+    (usersHtml?"<strong style='margin:0 6px 0 14px'>People:</strong>"+usersHtml:"")+
+    "<span class='k' style='margin-left:10px;color:#6b7c84'>click your cell to edit</span>";
 }
 
 /* ---------- modal ---------- */
@@ -716,24 +716,6 @@ fi.addEventListener("change",e=>{if(e.target.files.length)handleFiles([...e.targ
 ["dragleave","drop"].forEach(ev=>fp.addEventListener(ev,e=>{e.preventDefault();fp.classList.remove("drag");}));
 fp.addEventListener("drop",e=>{const f=[...e.dataTransfer.files].filter(x=>x.type==="application/pdf");if(f.length)handleFiles(f);});
 
-document.getElementById("startDate").addEventListener("change",render);
-document.getElementById("numDays").addEventListener("change",render);
-
-document.getElementById("pasteBtn").onclick=()=>{
-  document.getElementById("pasteAsName").textContent=currentSurfer?currentSurfer.name:"you";
-  document.getElementById("pasteBg").classList.add("show");
-  document.getElementById("pasteArea").focus();
-};
-document.getElementById("pasteCancel").onclick=()=>document.getElementById("pasteBg").classList.remove("show");
-document.getElementById("pasteBg").addEventListener("click",e=>{if(e.target.id==="pasteBg")document.getElementById("pasteBg").classList.remove("show");});
-document.getElementById("pasteImport").onclick=()=>{
-  const rows=parsePasted(document.getElementById("pasteArea").value);
-  if(!rows.length){setStatus("No bookings found in the pasted text.",true);return;}
-  document.getElementById("pasteBg").classList.remove("show");
-  document.getElementById("pasteArea").value="";
-  openImportPreview(rows,`${rows.length} row(s) pasted`);
-};
-
 /* change request email (only your own out/in) */
 function personName(b){return b.name||b.person;}
 function fmtNice(b){
@@ -781,37 +763,10 @@ document.getElementById("emailCopy").onclick=async()=>{
   setStatus("✅ Copied the change-request text.");
 };
 
-document.getElementById("fitBtn").onclick=()=>{
-  if(!bookings.length){setStatus("No bookings yet.",true);return;}
-  const dates=bookings.map(b=>b.date).sort();
-  const min=dates[0], max=dates[dates.length-1];
-  const days=Math.round((new Date(max)-new Date(min))/86400000)+1;
-  document.getElementById("startDate").value=min;
-  document.getElementById("numDays").value=days;
-  render();
-};
 document.getElementById("refreshBtn").onclick=async()=>{
   try{ await loadSurfers(); await loadBookings(); render(); setStatus("↻ Reloaded."); }
   catch(e){ setStatus("⚠️ Refresh failed: "+(e.message||e),true); }
 };
-document.getElementById("exportJson").onclick=()=>{
-  downloadBlob(JSON.stringify(bookings,null,2),"wave-bookings.json","application/json");
-};
-document.getElementById("importJsonBtn").onclick=()=>document.getElementById("importJson").click();
-document.getElementById("importJson").addEventListener("change",e=>{
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=async()=>{try{
-    const arr=JSON.parse(r.result);
-    const apps=arr.map(b=>({level:b.level||"Advanced",side:b.side||"",status:b.status||"",ref:b.ref||"",date:b.date,time:b.time}))
-                  .filter(b=>b.date&&b.time);
-    const n=await upsertMany(apps);
-    render();
-    setStatus(`✅ Imported ${n} booking(s) from file.`);
-  }catch(err){setStatus("⚠️ Not a valid data file, or import failed: "+(err.message||err),true);}};
-  r.readAsText(f);
-  e.target.value="";
-});
 document.getElementById("printBtn").onclick=()=>window.print();
 document.getElementById("clearBtn").onclick=async()=>{
   if(!currentSurfer)return;
@@ -822,13 +777,6 @@ document.getElementById("clearBtn").onclick=async()=>{
     await loadBookings(); render(); setStatus("Cleared your bookings.");
   }catch(e){ setStatus("⚠️ Could not clear: "+(e.message||e),true); }
 };
-function downloadBlob(content,name,type){
-  const blob=new Blob([content],{type});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);a.download=name;
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
-}
 
 /* ---------- auth ---------- */
 function showAuth(msg){
@@ -896,15 +844,7 @@ async function start(){
     return;
   }
   document.getElementById("meLabel").textContent=currentSurfer?`Signed in as ${currentSurfer.name} (${currentSurfer.code})`:"Signed in";
-  if(bookings.length){
-    const dates=bookings.map(b=>b.date).sort();
-    document.getElementById("startDate").value=dates[0];
-    const span=Math.round((new Date(dates[dates.length-1])-new Date(dates[0]))/86400000)+1;
-    document.getElementById("numDays").value=Math.max(7,span);
-  }else{
-    document.getElementById("startDate").value=fmtISO(new Date());
-  }
-  render();
+  render();   // date range auto-sizes to the bookings
 }
 function cleanUrl(){
   if(window.location.search||window.location.hash){
