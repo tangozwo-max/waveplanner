@@ -1,0 +1,10 @@
+# runtime config (generated from env on Vercel; hold your keys locally)
+config.js
+
+# deps / tooling
+node_modules/
+.vercel/
+.env
+.env.*
+.DS_Store
+Thumbs.db

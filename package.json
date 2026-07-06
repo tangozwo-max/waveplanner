@@ -1,0 +1,9 @@
+{
+  "name": "waveplanner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Online planner for The Wave surf sessions (Supabase + static site).",
+  "scripts": {
+    "build": "node build.js"
+  }
+}

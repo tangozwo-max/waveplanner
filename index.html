@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Wave · Surf Planner</title>
+<style>
+  :root{
+    --navy:#173747; --navy2:#0f2733; --ink:#173747;
+    --line:#d6dee2; --bg:#f4f7f8; --empty:#fbfcfc; --emptyhover:#eef4f6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  header{background:var(--navy);color:#fff;padding:18px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:20px;margin:0;letter-spacing:.5px;font-weight:700}
+  header .sub{opacity:.7;font-size:13px}
+  header .spacer{flex:1}
+  header .me{font-size:13px;opacity:.9}
+  header button{padding:7px 12px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+  .wrap{padding:18px 22px 60px}
+  .controls{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+  .ctl{display:flex;flex-direction:column;gap:5px}
+  .ctl label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#5a6b73;font-weight:600}
+  input[type=date],input[type=number],input[type=email],input[type=password],input[type=text],select{
+    padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;color:var(--ink)}
+  button{padding:9px 14px;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;color:var(--navy)}
+  button.warn{background:#fff;border-color:#c0392b;color:#c0392b}
+  button:hover{opacity:.9}
+  .filepick{border:2px dashed #9fb4bd;border-radius:10px;padding:12px 16px;background:#fff;display:flex;align-items:center;gap:12px;cursor:pointer;color:#456;font-size:14px}
+  .filepick.drag{background:#eef6f9;border-color:var(--navy)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 16px;font-size:12px;align-items:center}
+  .legend .k{display:flex;align-items:center;gap:6px}
+  .sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+  .status{font-size:13px;color:#456;margin-bottom:12px;min-height:18px}
+  .summary{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .summary .card{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#fff;font-size:13px;line-height:1.4}
+  .summary .card .who{font-weight:700}
+  .summary .card .tot{font-weight:800}
+  .summary .card .brk{color:#6b7c84;font-size:11px;margin-top:2px}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+  table{border-collapse:collapse;width:100%;min-width:760px}
+  th,td{border:1px solid var(--line);text-align:center}
+  thead th{background:var(--navy);color:#fff;font-size:12px;font-weight:600;padding:8px 6px}
+  th.time,td.time{background:#eef3f5;font-weight:700;font-size:12px;width:64px;white-space:nowrap;color:#3a4a52}
+  td.slot{cursor:pointer;padding:3px;vertical-align:top;min-width:120px}
+  td.slot.empty{background:var(--empty);height:40px}
+  td.slot.empty:hover{background:var(--emptyhover)}
+  .cellwrap{display:flex;flex-direction:column;gap:3px}
+  .chip{border-radius:6px;padding:5px 6px;color:#fff;display:flex;flex-direction:column;gap:3px}
+  .chip:hover{filter:brightness(1.06)}
+  .chip .ty{font-weight:700;font-size:11px;line-height:1.15;text-align:center}
+  .chip .pd{font-size:12px;font-weight:800;text-align:center;background:rgba(255,255,255,.22);border-radius:5px;padding:2px 6px;cursor:pointer}
+  .chip .pd:hover{background:rgba(255,255,255,.4)}
+  .chip .pd.mine{outline:1px solid rgba(255,255,255,.85)}
+  .chip .rq{display:block;font-size:9px;font-weight:800;letter-spacing:.2px;margin-top:2px;background:rgba(0,0,0,.28);border-radius:4px;padding:1px 3px}
+  .chip.out{opacity:.5}
+  .chip.out .ty{text-decoration:line-through}
+  .chip.in{outline:2px dashed #fff;outline-offset:-3px}
+  .addp{font-size:10px;text-align:center;color:#7a8992;cursor:pointer;padding:2px;border:1px dashed #cdd8dd;border-radius:5px;background:#fff}
+  .addp:hover{background:#eef4f6;color:var(--navy);border-color:var(--navy)}
+  .today th{outline:2px solid #ffcf5c}
+  .modal-bg{position:fixed;inset:0;background:rgba(15,39,51,.45);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:14px;padding:22px;width:320px;max-width:92vw;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+  .modal h3{margin:0 0 4px;font-size:16px}
+  .modal .who{font-size:13px;color:#5a6b73;margin-bottom:16px}
+  .modal .row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .modal .row label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#5a6b73;font-weight:600}
+  .modal .actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px}
+  .footnote{margin-top:22px;font-size:12px;color:#6b7c84;line-height:1.6;max-width:760px}
+  code{background:#e8eef1;padding:1px 5px;border-radius:4px;font-size:12px}
+  /* auth gate */
+  .authgate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  .authgate.show{display:flex}
+  .authbox{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;width:360px;max-width:94vw;box-shadow:0 18px 50px rgba(0,0,0,.12)}
+  .authbox h2{margin:0 0 4px;font-size:20px}
+  .authbox p{margin:0 0 18px;color:#5a6b73;font-size:13px}
+  .authbox .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .authbox .row label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#5a6b73;font-weight:600}
+  .authbox .btns{display:flex;gap:8px;margin-top:6px}
+  .authbox .btns button{flex:1}
+  .authmsg{font-size:12px;margin-top:12px;min-height:16px}
+</style>
+</head>
+<body>
+
+<!-- ===== Auth gate ===== -->
+<div class="authgate" id="authGate">
+  <div class="authbox">
+    <h2>🌊 Wave Planner</h2>
+    <p>Sign in to see and manage your Wave sessions.</p>
+    <div class="row"><label>Email</label><input id="authEmail" type="email" autocomplete="username" placeholder="you@example.com"></div>
+    <div class="row"><label>Password</label><input id="authPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+    <div class="row" id="authNameRow" style="display:none"><label>Your name (sign-up)</label><input id="authName" type="text" placeholder="e.g. Alessandro"></div>
+    <div class="btns">
+      <button id="authSignIn">Sign in</button>
+      <button id="authSignUp" class="ghost">Create account</button>
+    </div>
+    <div class="authmsg" id="authMsg"></div>
+  </div>
+</div>
+
+<!-- ===== App ===== -->
+<header>
+  <h1>🌊 THE WAVE · Surf Planner</h1>
+  <span class="sub">Bristol</span>
+  <span class="spacer"></span>
+  <span class="me" id="meLabel"></span>
+  <button id="signOutBtn">Sign out</button>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <label class="filepick" id="filepick">
+      📄 <span>Drop or click to add your booking PDFs</span>
+      <input id="fileinput" type="file" accept="application/pdf" multiple hidden>
+    </label>
+    <div class="ctl">
+      <label>Week start</label>
+      <input id="startDate" type="date">
+    </div>
+    <div class="ctl">
+      <label>Days</label>
+      <input id="numDays" type="number" min="1" max="31" value="7" style="width:70px">
+    </div>
+    <button class="ghost" id="pasteBtn" title="Paste your Wave reservation list (includes Left/Right)">📋 Paste booking list</button>
+    <button class="ghost" id="emailBtn" title="Build an email to the Wave for all slots you've flagged to move out / book in">✉️ Change request</button>
+    <button class="ghost" id="fitBtn" title="Set range to cover all bookings">Fit to bookings</button>
+    <button class="ghost" id="refreshBtn" title="Reload the latest sessions from the server">↻ Refresh</button>
+    <button class="ghost" id="exportJson">Export data (JSON)</button>
+    <button class="ghost" id="importJsonBtn">Import data</button>
+    <input id="importJson" type="file" accept="application/json" hidden>
+    <button class="ghost" id="printBtn">Print</button>
+    <button class="warn" id="clearBtn">Clear my bookings</button>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="status" id="status"></div>
+  <div class="summary" id="summary"></div>
+
+  <div class="tablewrap">
+    <table id="grid"></table>
+  </div>
+
+  <div class="footnote">
+    <strong>How it works:</strong> your sessions are stored online (Supabase) and shared with the other surfers on the grid —
+    you always see everyone's sessions, but you can only add / edit / delete <em>your own</em>. Click an empty slot to add one;
+    click one of your booked slots to change its level / side (Left / Right) or delete it.
+    <br><br>
+    <strong>Requesting a slot change:</strong> open one of your booked slots and set <em>Change request → Requested to move OUT</em>
+    (it goes grayed out). Independently, click an empty slot, fill the wave type/side, and set <em>Requested to book IN</em>.
+    Then click <code>✉️ Change request</code> to generate an email to the Wave listing everything to move out and book in.
+  </div>
+</div>
+
+<!-- Edit / add modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="mTitle">Edit session</h3>
+    <div class="who" id="mWho"></div>
+    <div class="row">
+      <label>Type</label>
+      <select id="mLevel"></select>
+    </div>
+    <div class="row">
+      <label>Person</label>
+      <select id="mPerson" disabled></select>
+    </div>
+    <div class="row">
+      <label>Side</label>
+      <select id="mSide">
+        <option value="">— none —</option>
+        <option value="L">Left</option>
+        <option value="R">Right</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Change request</label>
+      <select id="mStatus">
+        <option value="">— none (booked) —</option>
+        <option value="out">⟲ Requested to move OUT</option>
+        <option value="in">✚ Requested to book IN</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button class="warn" id="mDelete">Delete</button>
+      <div style="display:flex;gap:8px">
+        <button class="ghost" id="mCancel">Cancel</button>
+        <button id="mSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Paste booking list modal -->
+<div class="modal-bg" id="pasteBg">
+  <div class="modal" style="width:480px">
+    <h3>Paste booking list</h3>
+    <div class="who">Copy the reservation list from your Wave account page and paste it below — this format includes <strong>Left / Right</strong>. Everything is imported as <strong id="pasteAsName">you</strong>.</div>
+    <div class="row">
+      <label>Booking text</label>
+      <textarea id="pasteArea" placeholder="Cancemi Alessandro | RE - Expert Turns Surf Right - Adult
+23 July 2026 at 09:00 AM
+..." style="width:100%;height:180px;padding:10px;border:1px solid var(--line);border-radius:8px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+    </div>
+    <div class="actions">
+      <span></span>
+      <div style="display:flex;gap:8px">
+        <button class="ghost" id="pasteCancel">Cancel</button>
+        <button id="pasteImport">Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change request email modal -->
+<div class="modal-bg" id="emailBg">
+  <div class="modal" style="width:540px">
+    <h3>Change request email</h3>
+    <div class="who" id="emailSummary"></div>
+    <div class="row">
+      <label>To</label>
+      <input id="emailTo" type="text" value="hello@thewave.com">
+    </div>
+    <div class="row">
+      <label>Subject</label>
+      <input id="emailSubject" type="text">
+    </div>
+    <div class="row">
+      <label>Message</label>
+      <textarea id="emailBody" style="width:100%;height:230px;padding:10px;border:1px solid var(--line);border-radius:8px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="emailCopy">Copy text</button>
+      <div style="display:flex;gap:8px">
+        <button class="ghost" id="emailClose">Close</button>
+        <button id="emailOpen">Open in email app</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="./config.js"></script>
+<script>
+/* ---------- static config (levels loaded from DB) ---------- */
+const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Advanced","Expert"];
+const SLOT_TIMES = (()=>{const a=[];for(let h=6;h<=21;h++)a.push(String(h).padStart(2,"0")+":00");return a;})();
+const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTHS={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+/* ---------- runtime state ---------- */
+let sb=null;
+let session=null;
+let currentSurfer=null;              // {id,code,name,user_id}
+let LEVELS={};                       // name -> {abbr,color}
+let levelIdByName={}, levelNameById={};
+let surfersById={};                  // id -> {code,name,user_id}
+let bookings=[];                     // {id,surfer_id,person,name,level,side,status,ref,date,time}
+let editKey=null;
+
+/* ---------- date helpers ---------- */
+function fmtISO(d){return d.toISOString().slice(0,10);}
+function addDays(iso,n){const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return fmtISO(d);}
+function getRangeDays(){
+  const start=document.getElementById("startDate").value||fmtISO(new Date());
+  const n=Math.max(1,Math.min(31,parseInt(document.getElementById("numDays").value||"7",10)));
+  const days=[];for(let i=0;i<n;i++)days.push(addDays(start,i));return days;
+}
+function bookingAt(person,date,time){return bookings.find(b=>b.person===person&&b.date===date&&b.time===time);}
+function setStatus(msg,warn){const s=document.getElementById("status");s.textContent=msg;s.style.color=warn?"#c0392b":"#2e7d32";}
+
+/* ---------- data access ---------- */
+function rowToApp(r){
+  const s=surfersById[r.surfer_id]||{code:"?",name:"?"};
+  return {id:r.id,surfer_id:r.surfer_id,person:s.code,name:s.name,
+          level:levelNameById[r.level_id]||"Advanced",
+          side:r.side||"",status:r.status||"",ref:r.ref||"",
+          date:r.session_date,time:(r.session_time||"").slice(0,5)};
+}
+function mergeLocal(ar){
+  const i=bookings.findIndex(b=>b.id===ar.id||(b.surfer_id===ar.surfer_id&&b.date===ar.date&&b.time===ar.time));
+  if(i>=0)bookings[i]=ar; else bookings.push(ar);
+}
+async function loadLevels(){
+  const {data,error}=await sb.from("levels").select("*").eq("active",true).order("sort_order");
+  if(error) throw error;
+  LEVELS={};levelIdByName={};levelNameById={};
+  data.forEach(l=>{LEVELS[l.name]={abbr:l.abbr,color:l.color};levelIdByName[l.name]=l.id;levelNameById[l.id]=l.name;});
+  document.getElementById("mLevel").innerHTML=data.map(l=>`<option value="${l.name}">${l.name}</option>`).join("");
+}
+async function loadSurfers(){
+  const {data,error}=await sb.from("surfers").select("*");
+  if(error) throw error;
+  surfersById={};data.forEach(s=>surfersById[s.id]={code:s.code,name:s.name,user_id:s.user_id});
+  currentSurfer=data.find(s=>s.user_id===session.user.id)||null;
+}
+async function loadBookings(){
+  const {data,error}=await sb.from("bookings").select("*");
+  if(error) throw error;
+  bookings=data.map(rowToApp);
+}
+function levelId(name){return levelIdByName[name]||levelIdByName["Advanced"];}
+async function saveBooking(app){                       // save one session for the current surfer
+  const row={surfer_id:currentSurfer.id,level_id:levelId(app.level),
+             session_date:app.date,session_time:app.time,
+             side:app.side||null,status:app.status||null,ref:app.ref||""};
+  const {data,error}=await sb.from("bookings")
+     .upsert(row,{onConflict:"surfer_id,session_date,session_time"}).select().single();
+  if(error) throw error;
+  mergeLocal(rowToApp(data));
+}
+async function deleteBooking(id){
+  const {error}=await sb.from("bookings").delete().eq("id",id);
+  if(error) throw error;
+  bookings=bookings.filter(b=>b.id!==id);
+}
+async function upsertMany(apps){                       // bulk import for the current surfer
+  if(!apps.length) return 0;
+  const rows=apps.map(a=>({surfer_id:currentSurfer.id,level_id:levelId(a.level),
+     session_date:a.date,session_time:a.time,side:a.side||null,status:a.status||null,ref:a.ref||""}));
+  const {data,error}=await sb.from("bookings")
+     .upsert(rows,{onConflict:"surfer_id,session_date,session_time"}).select();
+  if(error) throw error;
+  data.forEach(r=>mergeLocal(rowToApp(r)));
+  return data.length;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const days=getRangeDays();
+  const timeSet=new Set(SLOT_TIMES);
+  bookings.forEach(b=>{ if(days.includes(b.date)) timeSet.add(b.time); });
+  const times=[...timeSet].sort();
+  const todayISO=fmtISO(new Date());
+
+  const t=document.getElementById("grid");
+  let h="<thead><tr><th class='time'>Time</th>";
+  days.forEach(d=>{
+    const dt=new Date(d+"T00:00:00");
+    const cls=(d===todayISO)?"today":"";
+    h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}</th>`;
+  });
+  h+="</tr></thead><tbody>";
+
+  times.forEach(tm=>{
+    h+=`<tr><td class='time'>${tm}</td>`;
+    days.forEach(d=>{
+      const list=bookings.filter(b=>b.date===d&&b.time===tm).sort((a,b)=>a.person.localeCompare(b.person));
+      if(list.length){
+        const order=[], groups={};
+        list.forEach(b=>{ if(!groups[b.level]){groups[b.level]=[];order.push(b.level);} groups[b.level].push(b); });
+        let inner="<div class='cellwrap'>";
+        order.forEach(level=>{
+          const L=LEVELS[level]||{abbr:level,color:"#555"};
+          const grp=groups[level];
+          const st=[...new Set(grp.map(b=>b.status||""))];
+          const gcls=(st.length===1)?({out:" out",in:" in"}[st[0]]||""):"";
+          const tyAttr=grp.length===1?`data-p='${grp[0].person}'`:"";
+          let lines="";
+          grp.forEach(b=>{
+            const dir=b.side||"";
+            const tag=b.status==="out"?"<span class='rq'>⟲ move out</span>"
+                     :b.status==="in"?"<span class='rq'>✚ requested</span>":"";
+            const tip=b.ref?`title='Booking ref ${b.ref}'`:"";
+            const mine=currentSurfer&&b.surfer_id===currentSurfer.id?" mine":"";
+            lines+=`<div class='pd${mine}' data-p='${b.person}' ${tip}>${b.person}${dir?" "+dir:""}${tag}</div>`;
+          });
+          inner+=`<div class='chip${gcls}' style='background:${L.color}'><div class='ty' ${tyAttr}>${L.abbr}</div>${lines}</div>`;
+        });
+        inner+="<div class='addp' data-add='1'>＋ add</div></div>";
+        h+=`<td class='slot' data-d='${d}' data-t='${tm}'>${inner}</td>`;
+      }else{
+        h+=`<td class='slot empty' data-d='${d}' data-t='${tm}'></td>`;
+      }
+    });
+    h+="</tr>";
+  });
+  h+="</tbody>";
+  t.innerHTML=h;
+  renderSummary();
+
+  t.querySelectorAll("td.slot").forEach(td=>{
+    td.addEventListener("click",e=>{
+      const pd=e.target.closest("[data-p]");
+      if(pd){ openModal(td.dataset.d,td.dataset.t,pd.dataset.p); return; }
+      if(e.target.closest(".addp") || td.classList.contains("empty")){
+        openModal(td.dataset.d,td.dataset.t,null);
+      }
+    });
+  });
+  renderLegend();
+}
+function renderSummary(){
+  const el=document.getElementById("summary");
+  if(!el) return;
+  const stats={};
+  bookings.forEach(b=>{
+    if(b.status==="in") return;                     // "book in" = not booked yet
+    const who=b.name||b.person;
+    if(!stats[who]) stats[who]={total:0,out:0,levels:{}};
+    stats[who].total++;
+    if(b.status==="out") stats[who].out++;
+    stats[who].levels[b.level]=(stats[who].levels[b.level]||0)+1;
+  });
+  const names=Object.keys(stats).sort();
+  if(!names.length){ el.innerHTML=""; return; }
+  el.innerHTML=names.map(who=>{
+    const s=stats[who];
+    const brk=Object.entries(s.levels).sort((a,b)=>b[1]-a[1]).map(([lv,n])=>`${n}× ${lv}`).join(" · ");
+    const outNote=s.out?` <span style="color:#c0392b">(${s.out} to move out)</span>`:"";
+    return `<div class='card'><span class='who'>${who}</span>: <span class='tot'>${s.total}</span> session${s.total===1?"":"s"}${outNote}<div class='brk'>${brk}</div></div>`;
+  }).join("");
+}
+function renderLegend(){
+  const el=document.getElementById("legend");
+  el.innerHTML="<strong style='margin-right:6px'>Levels:</strong>"+
+    Object.entries(LEVELS).map(([name,v])=>`<span class='k'><span class='sw' style='background:${v.color}'></span>${name}</span>`).join("")+
+    "<span class='k' style='margin-left:10px;color:#6b7c84'>click one of your cells to edit</span>";
+}
+
+/* ---------- modal ---------- */
+function openModal(date,time,person){
+  const existing=person?bookingAt(person,date,time):null;
+  if(existing && currentSurfer && existing.surfer_id!==currentSurfer.id){
+    setStatus(`That's ${existing.name}'s session — you can only edit your own.`,true);
+    return;
+  }
+  editKey={date,time,id:existing?existing.id:null,isNew:!existing};
+  const dt=new Date(date+"T00:00:00");
+  const personSel=document.getElementById("mPerson");
+  personSel.innerHTML=`<option>${currentSurfer?currentSurfer.name+" ("+currentSurfer.code+")":""}</option>`;
+  if(existing){
+    document.getElementById("mLevel").value=existing.level;
+    document.getElementById("mSide").value=existing.side;
+    document.getElementById("mStatus").value=existing.status||"";
+    document.getElementById("mTitle").textContent="Edit session";
+    document.getElementById("mDelete").style.visibility="visible";
+  }else{
+    document.getElementById("mLevel").value=Object.keys(LEVELS)[0]||"Advanced";
+    document.getElementById("mSide").value="";
+    document.getElementById("mStatus").value="";
+    document.getElementById("mTitle").textContent="Add session";
+    document.getElementById("mDelete").style.visibility="hidden";
+  }
+  document.getElementById("mWho").textContent=
+    WEEKDAYS[dt.getDay()]+" "+dt.getDate()+"/"+(dt.getMonth()+1)+" · "+time+
+    (existing&&existing.ref?"  ·  Ref "+existing.ref:"");
+  document.getElementById("modalBg").classList.add("show");
+}
+function closeModal(){document.getElementById("modalBg").classList.remove("show");editKey=null;}
+document.getElementById("mCancel").onclick=closeModal;
+document.getElementById("modalBg").addEventListener("click",e=>{if(e.target.id==="modalBg")closeModal();});
+document.getElementById("mSave").onclick=async()=>{
+  if(!editKey||!currentSurfer)return;
+  const prev=editKey.id?bookings.find(b=>b.id===editKey.id):null;
+  try{
+    await saveBooking({level:document.getElementById("mLevel").value,
+                       side:document.getElementById("mSide").value,
+                       status:document.getElementById("mStatus").value,
+                       ref:prev?prev.ref:"",date:editKey.date,time:editKey.time});
+    render();closeModal();
+  }catch(e){ setStatus("⚠️ Could not save: "+(e.message||e),true); }
+};
+document.getElementById("mDelete").onclick=async()=>{
+  if(!editKey||!editKey.id)return;
+  try{ await deleteBooking(editKey.id); render(); closeModal(); }
+  catch(e){ setStatus("⚠️ Could not delete: "+(e.message||e),true); }
+};
+
+/* ---------- PDF parsing ---------- */
+function matchLevel(text){
+  const c=(text||"").toLowerCase().replace(/\s+/g," ");
+  for(const L of LEVEL_MATCH){ if(c.includes(L.toLowerCase())) return {level:(L==="Expert Turn")?"Expert Turns":L,matched:true}; }
+  return {level:"Advanced",matched:false};
+}
+function matchLevelNearest(text){
+  const c=(text||"").toLowerCase();
+  let best=null,bestPos=-1;
+  for(const L of LEVEL_MATCH){
+    const p=c.lastIndexOf(L.toLowerCase());
+    if(p<0) continue;
+    if(p>bestPos||(p===bestPos&&(!best||L.length>best.length))){bestPos=p;best=L;}
+  }
+  return {level:best?((best==="Expert Turn")?"Expert Turns":best):"Advanced",matched:!!best};
+}
+function parseText(text){
+  const out=[];
+  const T=text.replace(/\s+/g," ");
+  const ref=(T.match(/(\d{10,})/)||[])[1]||"";
+  const dates=[...T.matchAll(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})(?::\d{2})?/g)]
+    .map(m=>({date:`${m[3]}-${m[2]}-${m[1]}`,time:`${m[4]}:${m[5]}`,index:m.index}));
+  const items=[...T.matchAll(/\b(?:RE|Session Bundle)\s*-\s*(.*?)\s*-\s*Adult/gi)].map(m=>({desc:m[1]}));
+  const mk=(desc,d)=>{
+    const {level}=matchLevel(desc);
+    let side=""; const sm=desc.match(/\b(Left|Right)\b/i); if(sm) side=sm[1][0].toUpperCase();
+    return {level,side,ref,date:d.date,time:d.time};
+  };
+  if(items.length && items.length===dates.length){
+    for(let i=0;i<items.length;i++) out.push(mk(items[i].desc,dates[i]));
+    return out;
+  }
+  for(const d of dates){
+    const ctx=T.slice(Math.max(0,d.index-140),d.index);
+    const {level}=matchLevelNearest(ctx);
+    let side=""; const sm=ctx.match(/\b(Left|Right)\b/i); if(sm) side=sm[1][0].toUpperCase();
+    out.push({level,side,ref,date:d.date,time:d.time});
+  }
+  return out;
+}
+function parsePasted(text){
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const dateRe=/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\s+at\s+(\d{1,2}):(\d{2})/i;
+  const out=[]; let pending=null, ref="";
+  for(const line of lines){
+    const rm=line.match(/Reservation\s*[-#:]?\s*(\d{6,})/i);
+    if(rm){ ref=rm[1]; continue; }
+    const dm=line.match(dateRe);
+    if(dm && pending){
+      const mon=MONTHS[dm[2].toLowerCase()];
+      if(mon){
+        out.push({...pending,ref,
+          date:`${dm[3]}-${String(mon).padStart(2,"0")}-${dm[1].padStart(2,"0")}`,
+          time:`${dm[4].padStart(2,"0")}:${dm[5]}`});
+      }
+      pending=null; continue;
+    }
+    const {level,matched}=matchLevel(line);
+    if(matched){
+      let side=""; const sm=line.match(/\b(Left|Right)\b/i); if(sm) side=sm[1][0].toUpperCase();
+      pending={level,side};
+    }
+  }
+  return out;
+}
+async function readPdf(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let text="";
+  for(let i=1;i<=pdf.numPages;i++){
+    const page=await pdf.getPage(i);
+    const tc=await page.getTextContent();
+    text+=" "+tc.items.map(it=>it.str).join(" ");
+  }
+  return text;
+}
+async function handleFiles(files){
+  if(!window.pdfjsLib){ setStatus("⚠️ PDF reader failed to load — check your connection, then reload.",true); return; }
+  const all=[];
+  for(const f of files){
+    try{ const text=await readPdf(f); parseText(text).forEach(r=>all.push(r)); }
+    catch(e){ console.error(e); setStatus("⚠️ Could not read "+f.name+" ("+e.message+")",true); }
+  }
+  try{
+    const n=await upsertMany(all);
+    render();
+    if(n) setStatus(`✅ Imported ${n} of your booking(s) from ${files.length} file(s).`);
+    else setStatus("No bookings found in those PDF(s).",true);
+  }catch(e){ setStatus("⚠️ Import failed: "+(e.message||e),true); }
+}
+
+/* ---------- toolbar ---------- */
+const fi=document.getElementById("fileinput");
+const fp=document.getElementById("filepick");
+fp.addEventListener("click",()=>fi.click());
+fi.addEventListener("change",e=>{if(e.target.files.length)handleFiles([...e.target.files]);fi.value="";});
+["dragover","dragenter"].forEach(ev=>fp.addEventListener(ev,e=>{e.preventDefault();fp.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>fp.addEventListener(ev,e=>{e.preventDefault();fp.classList.remove("drag");}));
+fp.addEventListener("drop",e=>{const f=[...e.dataTransfer.files].filter(x=>x.type==="application/pdf");if(f.length)handleFiles(f);});
+
+document.getElementById("startDate").addEventListener("change",render);
+document.getElementById("numDays").addEventListener("change",render);
+
+document.getElementById("pasteBtn").onclick=()=>{
+  document.getElementById("pasteAsName").textContent=currentSurfer?currentSurfer.name:"you";
+  document.getElementById("pasteBg").classList.add("show");
+  document.getElementById("pasteArea").focus();
+};
+document.getElementById("pasteCancel").onclick=()=>document.getElementById("pasteBg").classList.remove("show");
+document.getElementById("pasteBg").addEventListener("click",e=>{if(e.target.id==="pasteBg")document.getElementById("pasteBg").classList.remove("show");});
+document.getElementById("pasteImport").onclick=async()=>{
+  const rows=parsePasted(document.getElementById("pasteArea").value);
+  if(!rows.length){setStatus("No bookings found in the pasted text.",true);return;}
+  try{
+    const n=await upsertMany(rows);
+    render();
+    document.getElementById("pasteBg").classList.remove("show");
+    document.getElementById("pasteArea").value="";
+    setStatus(`✅ Imported ${n} booking(s) from the list.`);
+  }catch(e){ setStatus("⚠️ Import failed: "+(e.message||e),true); }
+};
+
+/* change request email (only your own out/in) */
+function personName(b){return b.name||b.person;}
+function fmtNice(b){
+  const dt=new Date(b.date+"T00:00:00");
+  const dir=b.side==="L"?"Left":b.side==="R"?"Right":"";
+  const dmy=b.date.split("-").reverse().join("/");
+  return `${b.level}${dir?" ("+dir+")":""} — ${WEEKDAYS[dt.getDay()]} ${dmy} at ${b.time}`;
+}
+function buildChangeEmail(){
+  const mine=b=>currentSurfer&&b.surfer_id===currentSurfer.id;
+  const sortf=(a,b)=>(a.date+a.time).localeCompare(b.date+b.time);
+  const outs=bookings.filter(b=>mine(b)&&b.status==="out").sort(sortf);
+  const ins=bookings.filter(b=>mine(b)&&b.status==="in").sort(sortf);
+  let body="Hi Wave team,\n\nPlease could you make the following change(s) to my booking(s):\n";
+  if(outs.length) body+="\nMOVE OUT (please release / change these sessions):\n"+
+    outs.map(b=>`• ${personName(b)} — ${fmtNice(b)}${b.ref?"  [Ref "+b.ref+"]":""}`).join("\n")+"\n";
+  if(ins.length) body+="\nBOOK IN INSTEAD (please add these sessions):\n"+
+    ins.map(b=>`• ${personName(b)} — ${fmtNice(b)}`).join("\n")+"\n";
+  const nm=currentSurfer?currentSurfer.name:"";
+  body+=`\nMany thanks,\n${nm}`;
+  return {subject:"Booking change request"+(nm?" – "+nm:""),body,outs:outs.length,ins:ins.length};
+}
+document.getElementById("emailBtn").onclick=()=>{
+  const e=buildChangeEmail();
+  if(!e.outs&&!e.ins){
+    setStatus("No change requests marked yet — open one of your booked slots and set “Requested to move OUT”, or an empty slot and set “Requested to book IN”.",true);
+    return;
+  }
+  document.getElementById("emailSummary").textContent=`${e.outs} to move out · ${e.ins} to book in`;
+  document.getElementById("emailSubject").value=e.subject;
+  document.getElementById("emailBody").value=e.body;
+  document.getElementById("emailBg").classList.add("show");
+};
+document.getElementById("emailClose").onclick=()=>document.getElementById("emailBg").classList.remove("show");
+document.getElementById("emailBg").addEventListener("click",e=>{if(e.target.id==="emailBg")document.getElementById("emailBg").classList.remove("show");});
+document.getElementById("emailOpen").onclick=()=>{
+  const to=encodeURIComponent(document.getElementById("emailTo").value.trim());
+  const s=encodeURIComponent(document.getElementById("emailSubject").value);
+  const b=encodeURIComponent(document.getElementById("emailBody").value);
+  window.location.href=`mailto:${to}?subject=${s}&body=${b}`;
+};
+document.getElementById("emailCopy").onclick=async()=>{
+  const ta=document.getElementById("emailBody");
+  try{ await navigator.clipboard.writeText(ta.value); }catch(e){ ta.select(); document.execCommand("copy"); }
+  setStatus("✅ Copied the change-request text.");
+};
+
+document.getElementById("fitBtn").onclick=()=>{
+  if(!bookings.length){setStatus("No bookings yet.",true);return;}
+  const dates=bookings.map(b=>b.date).sort();
+  const min=dates[0], max=dates[dates.length-1];
+  const days=Math.round((new Date(max)-new Date(min))/86400000)+1;
+  document.getElementById("startDate").value=min;
+  document.getElementById("numDays").value=days;
+  render();
+};
+document.getElementById("refreshBtn").onclick=async()=>{
+  try{ await loadSurfers(); await loadBookings(); render(); setStatus("↻ Reloaded."); }
+  catch(e){ setStatus("⚠️ Refresh failed: "+(e.message||e),true); }
+};
+document.getElementById("exportJson").onclick=()=>{
+  downloadBlob(JSON.stringify(bookings,null,2),"wave-bookings.json","application/json");
+};
+document.getElementById("importJsonBtn").onclick=()=>document.getElementById("importJson").click();
+document.getElementById("importJson").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async()=>{try{
+    const arr=JSON.parse(r.result);
+    const apps=arr.map(b=>({level:b.level||"Advanced",side:b.side||"",status:b.status||"",ref:b.ref||"",date:b.date,time:b.time}))
+                  .filter(b=>b.date&&b.time);
+    const n=await upsertMany(apps);
+    render();
+    setStatus(`✅ Imported ${n} booking(s) from file.`);
+  }catch(err){setStatus("⚠️ Not a valid data file, or import failed: "+(err.message||err),true);}};
+  r.readAsText(f);
+  e.target.value="";
+});
+document.getElementById("printBtn").onclick=()=>window.print();
+document.getElementById("clearBtn").onclick=async()=>{
+  if(!currentSurfer)return;
+  if(!confirm("Delete ALL of your bookings? (Other people's sessions are not affected.)"))return;
+  try{
+    const {error}=await sb.from("bookings").delete().eq("surfer_id",currentSurfer.id);
+    if(error) throw error;
+    await loadBookings(); render(); setStatus("Cleared your bookings.");
+  }catch(e){ setStatus("⚠️ Could not clear: "+(e.message||e),true); }
+};
+function downloadBlob(content,name,type){
+  const blob=new Blob([content],{type});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+
+/* ---------- auth ---------- */
+function showAuth(msg){
+  document.getElementById("authGate").classList.add("show");
+  if(msg) document.getElementById("authMsg").textContent=msg;
+}
+function hideAuth(){document.getElementById("authGate").classList.remove("show");}
+document.getElementById("authSignIn").onclick=async()=>{
+  const email=document.getElementById("authEmail").value.trim();
+  const password=document.getElementById("authPass").value;
+  document.getElementById("authMsg").textContent="Signing in…";
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){ document.getElementById("authMsg").textContent="⚠️ "+error.message; return; }
+  session=data.session;
+  await start();
+};
+document.getElementById("authSignUp").onclick=async()=>{
+  const nameRow=document.getElementById("authNameRow");
+  if(nameRow.style.display==="none"){ nameRow.style.display="flex"; document.getElementById("authMsg").textContent="Enter your name, then press Create account again."; return; }
+  const email=document.getElementById("authEmail").value.trim();
+  const password=document.getElementById("authPass").value;
+  const name=document.getElementById("authName").value.trim();
+  if(!name){ document.getElementById("authMsg").textContent="Please enter your name."; return; }
+  document.getElementById("authMsg").textContent="Creating account…";
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{name}}});
+  if(error){ document.getElementById("authMsg").textContent="⚠️ "+error.message; return; }
+  if(data.session){ session=data.session; await start(); }
+  else document.getElementById("authMsg").textContent="✅ Account created. Check your email to confirm, then sign in.";
+};
+document.getElementById("signOutBtn").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
+
+/* ---------- boot ---------- */
+async function start(){
+  hideAuth();
+  try{
+    await loadLevels();
+    await loadSurfers();
+    await loadBookings();
+  }catch(e){
+    setStatus("⚠️ Could not load data: "+(e.message||e)+"  (Is the `waveplanner` schema exposed in Supabase API settings?)",true);
+    return;
+  }
+  document.getElementById("meLabel").textContent=currentSurfer?`Signed in as ${currentSurfer.name} (${currentSurfer.code})`:"Signed in";
+  if(!currentSurfer) setStatus("No surfer profile found for your account — check the sign-up trigger ran.",true);
+  if(bookings.length){
+    const dates=bookings.map(b=>b.date).sort();
+    document.getElementById("startDate").value=dates[0];
+    const span=Math.round((new Date(dates[dates.length-1])-new Date(dates[0]))/86400000)+1;
+    document.getElementById("numDays").value=Math.max(7,span);
+  }else{
+    document.getElementById("startDate").value=fmtISO(new Date());
+  }
+  render();
+}
+async function boot(){
+  if(!window.WAVE_CONFIG||!WAVE_CONFIG.SUPABASE_URL||!WAVE_CONFIG.SUPABASE_ANON_KEY){
+    showAuth("⚠️ Missing Supabase config. Set SUPABASE_URL / SUPABASE_ANON_KEY (config.js or Vercel env).");
+    return;
+  }
+  sb=supabase.createClient(WAVE_CONFIG.SUPABASE_URL,WAVE_CONFIG.SUPABASE_ANON_KEY,{db:{schema:"waveplanner"}});
+  const {data}=await sb.auth.getSession();
+  session=data.session;
+  if(session) await start();
+  else showAuth();
+}
+boot();
+</script>
+</body></html>
