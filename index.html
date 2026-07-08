@@ -87,7 +87,10 @@
   .tag.unchanged{background:#eef2f4;color:#64748b}
   /* per-slot cell: one wave type, people below by fixed position (A left, T right) */
   .daycount{margin-top:3px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:14px}
-  .daycount .dc{font-size:9px;font-weight:800;color:#fff;border-radius:5px;padding:0 4px;line-height:14px}
+  .daycount .dc{font-size:8px;font-weight:800;color:#fff;border-radius:5px;padding:1px 4px;line-height:1;display:inline-flex;align-items:center;gap:3px}
+  .daycount .dc .wdots{display:inline-flex;gap:2px}
+  .daycount .dc .wd{width:5px;height:5px;border-radius:50%;border:1px solid rgba(255,255,255,.75);box-sizing:border-box}
+  .daycount .dc .wd.f{background:#fff}
   .cellwrap{display:flex;flex-direction:column;gap:3px}
   .lgroup{display:flex;flex-direction:column;gap:2px}
   .lgroup.out{opacity:.55}
@@ -412,9 +415,14 @@ function render(){
   days.forEach(d=>{
     const dt=new Date(d+"T00:00:00");
     const cls=(d===todayISO)?"today":"";
+    const MAXW=4;
     const cnt=gridSurfers.map(s=>{
       const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in").length;
-      return n?`<span class='dc' style='background:${userColorById[s.id]}'>${s.code}·${n}</span>`:"";
+      if(!n) return "";
+      const filled=Math.min(n,MAXW);
+      let dots="";
+      for(let i=0;i<MAXW;i++) dots+=`<i class='wd${i<filled?" f":""}'></i>`;
+      return `<span class='dc' style='background:${userColorById[s.id]}' title='${s.code}: ${n} wave${n>1?"s":""}'>${s.code}<span class='wdots'>${dots}</span></span>`;
     }).join("");
     h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}<div class='daycount'>${cnt}</div></th>`;
   });
