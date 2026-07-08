@@ -86,15 +86,15 @@
   .tag.missing{background:#fee2e2;color:#991b1b}
   .tag.unchanged{background:#eef2f4;color:#64748b}
   /* per-slot cell: one wave type, people below by fixed position (A left, T right) */
-  .daycount{margin-top:3px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:14px}
-  .daycount .dc{font-size:8px;font-weight:800;color:#fff;border-radius:5px;padding:1px 4px;line-height:1;display:inline-flex;align-items:center;gap:3px}
-  .daycount .dc .wbars{display:inline-flex;align-items:flex-end;gap:1px;height:9px}
-  .daycount .dc .wb{width:3px;background:rgba(255,255,255,.3);border-radius:1px}
+  .daycount{margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;min-height:20px}
+  .daycount .dc{font-size:11px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;line-height:1;display:inline-flex;align-items:center;gap:5px}
+  .daycount .dc .wbars{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
+  .daycount .dc .wb{width:4px;background:rgba(255,255,255,.32);border-radius:1px}
   .daycount .dc .wb.f{background:#fff}
-  .daycount .dc .wb:nth-child(1){height:3px}
-  .daycount .dc .wb:nth-child(2){height:5px}
-  .daycount .dc .wb:nth-child(3){height:7px}
-  .daycount .dc .wb:nth-child(4){height:9px}
+  .daycount .dc .wb:nth-child(1){height:5px}
+  .daycount .dc .wb:nth-child(2){height:8px}
+  .daycount .dc .wb:nth-child(3){height:11px}
+  .daycount .dc .wb:nth-child(4){height:14px}
   .cellwrap{display:flex;flex-direction:column;gap:3px}
   .lgroup{display:flex;flex-direction:column;gap:2px}
   .lgroup.out{opacity:.55}
@@ -397,19 +397,20 @@ async function upsertMany(apps){                       // bulk import for the cu
 }
 
 /* ---------- render ---------- */
-// Muted, professional user palette (low saturation).
-const USER_COLORS=["#5b7a99","#8a6d84","#5f8a6b","#a08a5b","#6d6b99","#5b8a8f"];
-// Client-side overrides for wave levels — abbreviations and muted colours,
+// Professional user palette — deep, distinct person tags (not the level hues).
+const USER_COLORS=["#334155","#9d174d","#1e40af","#92400e","#5b21b6","#115e59"];
+// Client-side overrides for wave levels — abbreviations and colours,
 // applied regardless of what the DB stores. Keyed by normalised level name.
 const LEVEL_ABBR={
   "advanced":"ADV", "advanced plus":"ADV+",
   "expert":"EXP", "expert turns":"EXPT", "expert plus":"EXP+",
   "expert barrel":"EXPB", "expert barrels":"EXPB",
 };
+// Rich jewel-tone difficulty ramp: cool (Advanced) -> warm/hot (Expert Barrels).
 const LEVEL_COLOR={
-  "advanced":"#6b8ca3", "advanced plus":"#6b9b8a",
-  "expert turns":"#9c8b6b", "expert plus":"#9c7b6b",
-  "expert barrel":"#8a6b8a", "expert barrels":"#8a6b8a", "expert":"#7b8a6b",
+  "advanced":"#0f766e", "advanced plus":"#0369a1",
+  "expert":"#4338ca", "expert turns":"#6d28d9",
+  "expert plus":"#b45309", "expert barrel":"#be123c", "expert barrels":"#be123c",
 };
 function normLvl(name){return (name||"").toLowerCase().replace(/\+/g," plus").replace(/\s+/g," ").trim();}
 function abbrOf(name,fallback){return LEVEL_ABBR[normLvl(name)]||fallback||name;}
