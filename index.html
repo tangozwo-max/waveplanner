@@ -39,6 +39,10 @@
   .legend .k{display:flex;align-items:center;gap:6px}
   .sw{width:14px;height:14px;border-radius:4px;display:inline-block}
   .status{font-size:13px;color:#456;margin-bottom:12px;min-height:18px}
+  .filterbar{display:none}
+  .filterbar.show{display:flex;align-items:center;gap:8px;background:#eef4f6;border:1px solid var(--line);border-radius:8px;padding:7px 12px;margin:0 0 14px;font-size:13px;color:var(--ink)}
+  .filterbar .fdot{width:12px;height:12px;border-radius:50%;display:inline-block}
+  .filterbar button{margin-left:auto;padding:4px 10px;font-size:12px;background:#fff;color:var(--navy);border:1px solid var(--navy)}
   .summary{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
   .summary .card{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#fff;font-size:13px;line-height:1.4}
   .summary .card .who{font-weight:700}
@@ -87,7 +91,10 @@
   .tag.unchanged{background:#eef2f4;color:#64748b}
   /* per-slot cell: one wave type, people below by fixed position (A left, T right) */
   .daycount{margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;min-height:20px}
-  .daycount .dc{font-size:11px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;line-height:1;display:inline-flex;align-items:center;gap:5px}
+  .daycount .dc{font-size:11px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;line-height:1;display:inline-flex;align-items:center;gap:5px;cursor:pointer;border:1.5px solid transparent}
+  .daycount .dc:hover{filter:brightness(1.12)}
+  .daycount.filtering .dc{opacity:.4}
+  .daycount.filtering .dc.active{opacity:1;border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
   .daycount .dc .wbars{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
   .daycount .dc .wb{width:4px;background:rgba(255,255,255,.32);border-radius:1px}
   .daycount .dc .wb.f{background:#fff}
@@ -172,6 +179,7 @@
 <div class="wrap">
   <div class="legend" id="legend"></div>
   <div class="status" id="status"></div>
+  <div class="filterbar" id="filterBar"></div>
   <div class="summary" id="summary"></div>
 
   <div class="tablewrap">
@@ -278,7 +286,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v17 · 2026-07-08";
+const APP_VERSION="v18 · 2026-07-08";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -406,16 +414,19 @@ const LEVEL_ABBR={
   "expert":"EXP", "expert turns":"EXPT", "expert plus":"EXP+",
   "expert barrel":"EXPB", "expert barrels":"EXPB",
 };
-// Rich jewel-tone difficulty ramp: cool (Advanced) -> warm/hot (Expert Barrels).
+// Single-hue difficulty ramp — one colour, darker the harder it gets.
+// Order: Advanced < Advanced+ < Expert Turns < Expert Barrel < Expert Plus.
 const LEVEL_COLOR={
-  "advanced":"#0f766e", "advanced plus":"#0369a1",
-  "expert":"#4338ca", "expert turns":"#6d28d9",
-  "expert plus":"#b45309", "expert barrel":"#be123c", "expert barrels":"#be123c",
+  "advanced":"#4a8196", "advanced plus":"#3a6a7d",
+  "expert turns":"#2c5464", "expert":"#2c5464",
+  "expert barrel":"#1f3f4c", "expert barrels":"#1f3f4c",
+  "expert plus":"#142a34",
 };
 function normLvl(name){return (name||"").toLowerCase().replace(/\+/g," plus").replace(/\s+/g," ").trim();}
 function abbrOf(name,fallback){return LEVEL_ABBR[normLvl(name)]||fallback||name;}
 function colorOf(name,fallback){return LEVEL_COLOR[normLvl(name)]||fallback||"#64748b";}
 let userColorById={}, gridSurfers=[];
+let filterSurferId=null;   // when set, show only this person's waves (as string id)
 function computeGridSurfers(days){
   const ids=new Set(bookings.filter(b=>days.includes(b.date)).map(b=>b.surfer_id));
   if(currentSurfer) ids.add(currentSurfer.id);
@@ -443,16 +454,23 @@ function render(){
       const filled=Math.min(n,MAXW);
       let bars="";
       for(let i=0;i<MAXW;i++) bars+=`<i class='wb${i<filled?" f":""}'></i>`;
-      return `<span class='dc' style='background:${userColorById[s.id]}' title='${s.code}: ${n} wave${n>1?"s":""}'>${s.code}<span class='wbars'>${bars}</span></span>`;
+      const active=String(s.id)===filterSurferId?" active":"";
+      return `<span class='dc${active}' data-fs='${s.id}' style='background:${userColorById[s.id]}' title='${s.code}: ${n} wave${n>1?"s":""} — click to filter'>${s.code}<span class='wbars'>${bars}</span></span>`;
     }).join("");
-    h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}<div class='daycount'>${cnt}</div></th>`;
+    const dcls=filterSurferId?" daycount filtering":" daycount";
+    h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}<div class='${dcls}'>${cnt}</div></th>`;
   });
   h+="</tr></thead><tbody>";
 
   times.forEach(tm=>{
     h+=`<tr><td class='time'>${tm}</td>`;
     days.forEach(d=>{
-      const cb=bookings.filter(b=>b.date===d&&b.time===tm);
+      let cb=bookings.filter(b=>b.date===d&&b.time===tm);
+      if(filterSurferId){
+        // waves (levels) the filtered person booked in this slot
+        const myLevels=new Set(cb.filter(b=>String(b.surfer_id)===filterSurferId).map(b=>b.level));
+        cb=myLevels.size?cb.filter(b=>myLevels.has(b.level)):[];   // others visible only on the same wave
+      }
       if(!cb.length){ h+=`<td class='slot empty' data-d='${d}' data-t='${tm}'></td>`; return; }
       // group by wave type (shown once per slot); order by level difficulty
       const levelOrder=Object.keys(LEVELS);
@@ -487,7 +505,7 @@ function render(){
                `</div>`;
       });
       const iHave=currentSurfer&&cb.some(b=>b.surfer_id===currentSurfer.id);
-      if(currentSurfer&&!iHave) inner+="<div class='addp' data-addself='1'>＋ add</div>";
+      if(currentSurfer&&!iHave&&!filterSurferId) inner+="<div class='addp' data-addself='1'>＋ add</div>";
       inner+="</div>";
       h+=`<td class='slot' data-d='${d}' data-t='${tm}'>${inner}</td>`;
     });
@@ -506,6 +524,14 @@ function render(){
       }
     });
   });
+  t.querySelectorAll(".dc[data-fs]").forEach(chip=>{
+    chip.addEventListener("click",()=>{
+      const id=chip.dataset.fs;
+      filterSurferId=(filterSurferId===id)?null:id;
+      render();
+    });
+  });
+  renderFilterBar();
   renderLegend();
 }
 function renderSummary(){
@@ -528,6 +554,17 @@ function renderSummary(){
     const outNote=s.out?` <span style="color:#c0392b">(${s.out} to move out)</span>`:"";
     return `<div class='card'><span class='who'>${who}</span>: <span class='tot'>${s.total}</span> session${s.total===1?"":"s"}${outNote}<div class='brk'>${brk}</div></div>`;
   }).join("");
+}
+function renderFilterBar(){
+  const el=document.getElementById("filterBar");
+  if(!el) return;
+  if(!filterSurferId){ el.className="filterbar"; el.innerHTML=""; return; }
+  const s=surfersById[filterSurferId]||gridSurfers.find(g=>String(g.id)===filterSurferId)||{name:"?",code:"?"};
+  el.className="filterbar show";
+  el.innerHTML=`<span class='fdot' style='background:${userColorById[filterSurferId]||"#555"}'></span>`+
+    `Showing only <strong>${s.name||s.code}</strong>'s waves`+
+    `<button type='button' id='clearFilter'>Clear ✕</button>`;
+  el.querySelector("#clearFilter").onclick=()=>{ filterSurferId=null; render(); };
 }
 function renderLegend(){
   const el=document.getElementById("legend");
