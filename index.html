@@ -65,7 +65,7 @@
   .chip.in{outline:2px dashed #fff;outline-offset:-3px}
   .addp{font-size:10px;text-align:center;color:#7a8992;cursor:pointer;padding:2px;border:1px dashed #cdd8dd;border-radius:5px;background:#fff}
   .addp:hover{background:#eef4f6;color:var(--navy);border-color:var(--navy)}
-  .today th{outline:2px solid #ffcf5c}
+  .today th{outline:2px solid #8fa8b5}
   .modal-bg{position:fixed;inset:0;background:rgba(15,39,51,.45);display:none;align-items:center;justify-content:center;z-index:50}
   .modal-bg.show{display:flex}
   .modal{background:#fff;border-radius:14px;padding:22px;width:320px;max-width:92vw;box-shadow:0 18px 50px rgba(0,0,0,.25)}
@@ -88,9 +88,13 @@
   /* per-slot cell: one wave type, people below by fixed position (A left, T right) */
   .daycount{margin-top:3px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:14px}
   .daycount .dc{font-size:8px;font-weight:800;color:#fff;border-radius:5px;padding:1px 4px;line-height:1;display:inline-flex;align-items:center;gap:3px}
-  .daycount .dc .wdots{display:inline-flex;gap:2px}
-  .daycount .dc .wd{width:5px;height:5px;border-radius:50%;border:1px solid rgba(255,255,255,.75);box-sizing:border-box}
-  .daycount .dc .wd.f{background:#fff}
+  .daycount .dc .wbars{display:inline-flex;align-items:flex-end;gap:1px;height:9px}
+  .daycount .dc .wb{width:3px;background:rgba(255,255,255,.3);border-radius:1px}
+  .daycount .dc .wb.f{background:#fff}
+  .daycount .dc .wb:nth-child(1){height:3px}
+  .daycount .dc .wb:nth-child(2){height:5px}
+  .daycount .dc .wb:nth-child(3){height:7px}
+  .daycount .dc .wb:nth-child(4){height:9px}
   .cellwrap{display:flex;flex-direction:column;gap:3px}
   .lgroup{display:flex;flex-direction:column;gap:2px}
   .lgroup.out{opacity:.55}
@@ -274,7 +278,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v16 · 2026-07-06";
+const APP_VERSION="v17 · 2026-07-08";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -393,7 +397,23 @@ async function upsertMany(apps){                       // bulk import for the cu
 }
 
 /* ---------- render ---------- */
-const USER_COLORS=["#2563eb","#db2777","#16a34a","#d97706","#7c3aed","#0891b2"];
+// Muted, professional user palette (low saturation).
+const USER_COLORS=["#5b7a99","#8a6d84","#5f8a6b","#a08a5b","#6d6b99","#5b8a8f"];
+// Client-side overrides for wave levels — abbreviations and muted colours,
+// applied regardless of what the DB stores. Keyed by normalised level name.
+const LEVEL_ABBR={
+  "advanced":"ADV", "advanced plus":"ADV+",
+  "expert":"EXP", "expert turns":"EXPT", "expert plus":"EXP+",
+  "expert barrel":"EXPB", "expert barrels":"EXPB",
+};
+const LEVEL_COLOR={
+  "advanced":"#6b8ca3", "advanced plus":"#6b9b8a",
+  "expert turns":"#9c8b6b", "expert plus":"#9c7b6b",
+  "expert barrel":"#8a6b8a", "expert barrels":"#8a6b8a", "expert":"#7b8a6b",
+};
+function normLvl(name){return (name||"").toLowerCase().replace(/\+/g," plus").replace(/\s+/g," ").trim();}
+function abbrOf(name,fallback){return LEVEL_ABBR[normLvl(name)]||fallback||name;}
+function colorOf(name,fallback){return LEVEL_COLOR[normLvl(name)]||fallback||"#64748b";}
 let userColorById={}, gridSurfers=[];
 function computeGridSurfers(days){
   const ids=new Set(bookings.filter(b=>days.includes(b.date)).map(b=>b.surfer_id));
@@ -420,9 +440,9 @@ function render(){
       const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in").length;
       if(!n) return "";
       const filled=Math.min(n,MAXW);
-      let dots="";
-      for(let i=0;i<MAXW;i++) dots+=`<i class='wd${i<filled?" f":""}'></i>`;
-      return `<span class='dc' style='background:${userColorById[s.id]}' title='${s.code}: ${n} wave${n>1?"s":""}'>${s.code}<span class='wdots'>${dots}</span></span>`;
+      let bars="";
+      for(let i=0;i<MAXW;i++) bars+=`<i class='wb${i<filled?" f":""}'></i>`;
+      return `<span class='dc' style='background:${userColorById[s.id]}' title='${s.code}: ${n} wave${n>1?"s":""}'>${s.code}<span class='wbars'>${bars}</span></span>`;
     }).join("");
     h+=`<th class='${cls}'>${WEEKDAYS[dt.getDay()]} ${dt.getDate()}/${dt.getMonth()+1}<div class='daycount'>${cnt}</div></th>`;
   });
@@ -449,7 +469,8 @@ function render(){
         return `<b class='u${mine}' data-p='${code}' style='background:${userColorById[b.surfer_id]||"#555"}' title="${tip}">${code}${tag}</b>`;
       };
       order.forEach(level=>{
-        const L=LEVELS[level]||{abbr:level,color:"#555"};
+        const Lraw=LEVELS[level]||{abbr:level,color:"#555"};
+        const L={abbr:abbrOf(level,Lraw.abbr),color:colorOf(level,Lraw.color)};
         const grp=groups[level];
         const st=[...new Set(grp.map(b=>b.status||""))];
         const gcls=(st.length===1)?({out:" out",in:" in"}[st[0]]||""):"";
@@ -509,7 +530,7 @@ function renderSummary(){
 }
 function renderLegend(){
   const el=document.getElementById("legend");
-  const levelsHtml=Object.entries(LEVELS).map(([name,v])=>`<span class='k'><span class='sw' style='background:${v.color}'></span>${name}</span>`).join("");
+  const levelsHtml=Object.entries(LEVELS).map(([name,v])=>`<span class='k'><span class='sw' style='background:${colorOf(name,v.color)}'></span>${name} (${abbrOf(name,v.abbr)})</span>`).join("");
   const usersHtml=gridSurfers.map(s=>`<span class='k'><span class='sw' style='background:${userColorById[s.id]}'></span>${s.name} (${s.code})</span>`).join("");
   el.innerHTML="<strong style='margin-right:6px'>Levels:</strong>"+levelsHtml+
     (usersHtml?"<strong style='margin:0 6px 0 14px'>People:</strong>"+usersHtml:"")+
