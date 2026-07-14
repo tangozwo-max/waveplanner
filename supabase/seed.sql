@@ -8,7 +8,8 @@ insert into waveplanner.levels (name, abbr, color, sort_order) values
   ('Expert Turns',  'Turns',  '#5b6ba0', 4),   -- muted indigo
   ('Expert Barrel', 'Barrel', '#79609b', 5),   -- muted violet
   ('Expert Plus',   'Exp+',   '#965f88', 6),   -- muted mauve
-  ('Barrel Medley', 'Medley', '#a05a64', 7)    -- muted rose
+  ('Barrel Medley', 'Medley', '#a05a64', 7),   -- muted rose
+  ('Performance Coaching', 'Coach', '#b5722b', 8)  -- amber; special type, starts 30 min early
 on conflict (name) do update
   set abbr = excluded.abbr,
       color = excluded.color,
