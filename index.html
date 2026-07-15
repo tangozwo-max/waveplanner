@@ -69,7 +69,14 @@
   .chip.in{outline:2px dashed #fff;outline-offset:-3px}
   .addp{font-size:10px;text-align:center;color:#7a8992;cursor:pointer;padding:2px;border:1px dashed #cdd8dd;border-radius:5px;background:#fff}
   .addp:hover{background:#eef4f6;color:var(--navy);border-color:var(--navy)}
-  .today th{outline:2px solid #8fa8b5}
+  /* day-column states: past faded/grey, today accented, future normal */
+  th.d-past, td.d-past{filter:grayscale(.92) opacity(.5)}
+  td.d-past.slot.empty{background:#f0f3f4}
+  th.d-today{background:var(--navy2);box-shadow:inset 0 -3px 0 #e0a020}
+  td.d-today, th.d-today{border-left:2px solid #e0a020;border-right:2px solid #e0a020}
+  td.d-today.slot{background:#fffdf5}
+  td.d-today.slot.empty{background:#fffdf5}
+  td.d-today.slot.empty:hover{background:#fbf3d8}
   .modal-bg{position:fixed;inset:0;background:rgba(15,39,51,.45);display:none;align-items:center;justify-content:center;z-index:50}
   .modal-bg.show{display:flex}
   .modal{background:#fff;border-radius:14px;padding:22px;width:320px;max-width:92vw;box-shadow:0 18px 50px rgba(0,0,0,.25)}
@@ -295,7 +302,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v19 · 2026-07-14";
+const APP_VERSION="v20 · 2026-07-15";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Performance Coaching","Advanced Coaching","Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -465,7 +472,7 @@ function render(){
   let h="<thead><tr><th class='time'>Time</th>";
   days.forEach(d=>{
     const dt=new Date(d+"T00:00:00");
-    const cls=(d===todayISO)?"today":"";
+    const cls=(d<todayISO)?"d-past":(d===todayISO)?"d-today":"d-future";
     const MAXW=4;
     const cnt=gridSurfers.map(s=>{
       const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in").length;
@@ -484,13 +491,14 @@ function render(){
   times.forEach(tm=>{
     h+=`<tr><td class='time'>${tm}</td>`;
     days.forEach(d=>{
+      const dcls=(d<todayISO)?"d-past":(d===todayISO)?"d-today":"d-future";
       let cb=bookings.filter(b=>b.date===d&&b.time===tm);
       if(filterSurferId){
         // waves (levels) the filtered person booked in this slot
         const myLevels=new Set(cb.filter(b=>String(b.surfer_id)===filterSurferId).map(b=>b.level));
         cb=myLevels.size?cb.filter(b=>myLevels.has(b.level)):[];   // others visible only on the same wave
       }
-      if(!cb.length){ h+=`<td class='slot empty' data-d='${d}' data-t='${tm}'></td>`; return; }
+      if(!cb.length){ h+=`<td class='slot empty ${dcls}' data-d='${d}' data-t='${tm}'></td>`; return; }
       // group by wave type (shown once per slot); order by level difficulty
       const levelOrder=Object.keys(LEVELS);
       const order=[], groups={};
@@ -528,7 +536,7 @@ function render(){
       const iHave=currentSurfer&&cb.some(b=>b.surfer_id===currentSurfer.id);
       if(currentSurfer&&!iHave&&!filterSurferId) inner+="<div class='addp' data-addself='1'>＋ add</div>";
       inner+="</div>";
-      h+=`<td class='slot' data-d='${d}' data-t='${tm}'>${inner}</td>`;
+      h+=`<td class='slot ${dcls}' data-d='${d}' data-t='${tm}'>${inner}</td>`;
     });
     h+="</tr>";
   });
