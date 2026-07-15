@@ -119,10 +119,13 @@
   /* Coaching flag: an amber tab reaching up into the 30-min slot before the session */
   .lgroup.coach{position:relative}
   .lgroup.coach .early{
-    position:absolute;left:5px;right:5px;top:-17px;height:16px;
-    background:#c17d1a;color:#fff;font-size:8px;font-weight:800;letter-spacing:.3px;
-    border-radius:4px;display:flex;align-items:center;justify-content:center;gap:2px;
-    box-shadow:0 1px 2px rgba(0,0,0,.22);z-index:2}
+    position:absolute;left:5px;right:5px;top:-30px;min-height:28px;
+    background:#c17d1a;color:#fff;border-radius:5px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    padding:2px 3px;box-shadow:0 1px 2px rgba(0,0,0,.22);z-index:2}
+  .lgroup.coach .early .etime{font-size:8px;font-weight:800;letter-spacing:.3px;line-height:1}
+  .lgroup.coach .early .ecodes{display:flex;flex-wrap:wrap;gap:2px;justify-content:center}
+  .lgroup.coach .early .ctag{font-size:10px;font-weight:800;color:#fff;border-radius:4px;padding:0 4px;line-height:1.35;box-shadow:0 0 0 1px rgba(255,255,255,.55)}
   .lgroup.coach.out .early{text-decoration:line-through}
   .lty{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
   .sides{display:flex;gap:3px}
@@ -308,7 +311,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v21 · 2026-07-15";
+const APP_VERSION="v22 · 2026-07-15";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -527,9 +530,11 @@ function render(){
         const lefts=grp.filter(b=>b.side==="L").sort(byCode);
         const rights=grp.filter(b=>b.side==="R").sort(byCode);
         const none=grp.filter(b=>b.side!=="L"&&b.side!=="R").sort(byCode);   // no-side -> left bucket
-        const coach=grp.some(b=>b.coaching);
+        const coachedList=grp.filter(b=>b.coaching).sort(byCode);
+        const coach=coachedList.length>0;
+        const coachTags=coachedList.map(b=>`<b class='ctag' style='background:${userColorById[b.surfer_id]||"#555"}' title="${b.name} · Coaching ${minus30(tm)}">${codeOf(b.surfer_id)}</b>`).join("");
         inner+=`<div class='lgroup${gcls}${coach?" coach":""}' style='--lc:${L.color}'>`+
-                 (coach?`<div class='early' title='Coaching — starts 30 min earlier (${minus30(tm)})'>▲ ${minus30(tm)}</div>`:"")+
+                 (coach?`<div class='early' title='Coaching — starts 30 min earlier (${minus30(tm)})'><span class='etime'>▲ ${minus30(tm)}</span><span class='ecodes'>${coachTags}</span></div>`:"")+
                  `<div class='lty' style='background:${L.color}'>${L.abbr}</div>`+
                  `<div class='sides'>`+
                    `<div class='side'><div class='slab'>LEFT</div><div class='sbox'>${lefts.map(pill).join("")+none.map(pill).join("")}</div></div>`+
