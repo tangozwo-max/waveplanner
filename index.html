@@ -84,6 +84,8 @@
   .modal .who{font-size:13px;color:#5a6b73;margin-bottom:16px}
   .modal .row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .modal .row label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#5a6b73;font-weight:600}
+  .modal .row label.checkrow{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);font-weight:500;cursor:pointer}
+  .modal .row label.checkrow input{width:16px;height:16px;cursor:pointer}
   .modal .actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px}
   .footnote{margin-top:22px;font-size:12px;color:#6b7c84;line-height:1.6;max-width:760px}
   code{background:#e8eef1;padding:1px 5px;border-radius:4px;font-size:12px}
@@ -114,14 +116,13 @@
   .lgroup.out{opacity:.55}
   .lgroup.out .lty{text-decoration:line-through}
   .lgroup.in .lty{outline:2px dashed #cbd5e1;outline-offset:-2px}
-  /* Coaching starts 30 min early: the illustration reaches up into the slot before */
+  /* Coaching flag: an amber tab reaching up into the 30-min slot before the session */
   .lgroup.coach{position:relative}
-  .lgroup.coach .lty{border-radius:0 0 5px 5px}
   .lgroup.coach .early{
-    position:absolute;left:4px;right:4px;top:-19px;height:19px;
-    background:var(--lc);color:#fff;font-size:8px;font-weight:800;letter-spacing:.3px;
-    border-radius:5px 5px 0 0;display:flex;align-items:center;justify-content:center;gap:2px;
-    opacity:.9;box-shadow:0 -1px 0 rgba(255,255,255,.22) inset;z-index:2}
+    position:absolute;left:5px;right:5px;top:-17px;height:16px;
+    background:#c17d1a;color:#fff;font-size:8px;font-weight:800;letter-spacing:.3px;
+    border-radius:4px;display:flex;align-items:center;justify-content:center;gap:2px;
+    box-shadow:0 1px 2px rgba(0,0,0,.22);z-index:2}
   .lgroup.coach.out .early{text-decoration:line-through}
   .lty{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
   .sides{display:flex;gap:3px}
@@ -130,6 +131,7 @@
   .sbox{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;min-height:15px;width:100%}
   .u{font-size:11px;font-weight:800;color:#fff;border-radius:5px;padding:1px 6px;white-space:nowrap;cursor:pointer}
   .u .rq{font-size:8px;font-weight:800;margin-left:1px}
+  .u.coached{box-shadow:0 0 0 2px #c17d1a}   /* amber ring = this person is being coached */
   /* auth gate */
   .authgate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .authgate.show{display:flex}
@@ -235,6 +237,10 @@
       </select>
     </div>
     <div class="row">
+      <label>Coaching</label>
+      <label class="checkrow"><input type="checkbox" id="mCoach"> Add coaching — starts 30 min earlier</label>
+    </div>
+    <div class="row">
       <label>Change request</label>
       <select id="mStatus">
         <option value="">— none (booked) —</option>
@@ -302,10 +308,10 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v20 · 2026-07-15";
+const APP_VERSION="v21 · 2026-07-15";
 
 /* ---------- static config (levels loaded from DB) ---------- */
-const LEVEL_MATCH = ["Performance Coaching","Advanced Coaching","Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
+const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
 const SLOT_TIMES = (()=>{const a=[];for(let h=6;h<=21;h++)a.push(String(h).padStart(2,"0")+":00");return a;})();
 const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTHS={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
@@ -348,7 +354,7 @@ function rowToApp(r){
   const s=surfersById[r.surfer_id]||{code:"?",name:"?"};
   return {id:r.id,surfer_id:r.surfer_id,person:s.code,name:s.name,
           level:levelNameById[r.level_id]||"Advanced",
-          side:r.side||"",status:r.status||"",ref:r.ref||"",
+          side:r.side||"",status:r.status||"",ref:r.ref||"",coaching:!!r.coaching,
           date:r.session_date,time:(r.session_time||"").slice(0,5)};
 }
 function mergeLocal(ar){
@@ -398,7 +404,7 @@ function levelId(name){return levelIdByName[name]||levelIdByName["Advanced"];}
 async function saveBooking(app){                       // save one session for the current surfer
   const row={surfer_id:currentSurfer.id,level_id:levelId(app.level),
              session_date:app.date,session_time:app.time,
-             side:app.side||null,status:app.status||null,ref:app.ref||""};
+             side:app.side||null,status:app.status||null,ref:app.ref||"",coaching:!!app.coaching};
   const {data,error}=await sb.from("bookings")
      .upsert(row,{onConflict:"surfer_id,session_date,session_time"}).select().single();
   if(error) throw error;
@@ -412,7 +418,7 @@ async function deleteBooking(id){
 async function upsertMany(apps){                       // bulk import for the current surfer
   if(!apps.length) return 0;
   const rows=apps.map(a=>({surfer_id:currentSurfer.id,level_id:levelId(a.level),
-     session_date:a.date,session_time:a.time,side:a.side||null,status:a.status||null,ref:a.ref||""}));
+     session_date:a.date,session_time:a.time,side:a.side||null,status:a.status||null,ref:a.ref||"",coaching:!!a.coaching}));
   const {data,error}=await sb.from("bookings")
      .upsert(rows,{onConflict:"surfer_id,session_date,session_time"}).select();
   if(error) throw error;
@@ -429,7 +435,6 @@ const LEVEL_ABBR={
   "advanced":"ADV", "advanced plus":"ADV+",
   "expert":"EXP", "expert turns":"EXPT", "expert plus":"EXP+",
   "expert barrel":"EXPB", "expert barrels":"EXPB",
-  "performance coaching":"COACH", "advanced coaching":"COACH",
 };
 // Single-hue difficulty ramp — one colour, darker the harder it gets.
 // Order: Advanced < Advanced+ < Expert Turns < Expert Barrel < Expert Plus.
@@ -438,14 +443,12 @@ const LEVEL_COLOR={
   "expert turns":"#2c5464", "expert":"#2c5464",
   "expert barrel":"#1f3f4c", "expert barrels":"#1f3f4c",
   "expert plus":"#142a34",
-  // Coaching is a special type (warm amber) so it stands out from the cool ramp.
-  "performance coaching":"#b5722b", "advanced coaching":"#b5722b",
 };
 function normLvl(name){return (name||"").toLowerCase().replace(/\+/g," plus").replace(/\s+/g," ").trim();}
 function abbrOf(name,fallback){return LEVEL_ABBR[normLvl(name)]||fallback||name;}
 function colorOf(name,fallback){return LEVEL_COLOR[normLvl(name)]||fallback||"#64748b";}
-// Performance / Advanced Coaching sessions start 30 min earlier than the booked slot.
-function isCoach(name){return normLvl(name).includes("coaching");}
+// Coaching is a flag, not a level — detect it in imported session text.
+function hasCoaching(text){return /coach/i.test(text||"");}
 function minus30(t){
   const [h,m]=(t||"0:0").split(":").map(Number);
   let mins=h*60+m-30; if(mins<0)mins+=1440;
@@ -510,9 +513,10 @@ function render(){
       const pill=b=>{
         const tag=b.status==="out"?"<span class='rq'>⟲</span>":b.status==="in"?"<span class='rq'>✚</span>":"";
         const mine=currentSurfer&&b.surfer_id===currentSurfer.id?" mine":"";
+        const coached=b.coaching?" coached":"";
         const code=codeOf(b.surfer_id);
-        const tip=`${b.name}${b.side?" "+(b.side==="L"?"Left":"Right"):""}${b.ref?" · Ref "+b.ref:""}`;
-        return `<b class='u${mine}' data-p='${code}' style='background:${userColorById[b.surfer_id]||"#555"}' title="${tip}">${code}${tag}</b>`;
+        const tip=`${b.name}${b.side?" "+(b.side==="L"?"Left":"Right"):""}${b.coaching?" · Coaching":""}${b.ref?" · Ref "+b.ref:""}`;
+        return `<b class='u${mine}${coached}' data-p='${code}' style='background:${userColorById[b.surfer_id]||"#555"}' title="${tip}">${code}${tag}</b>`;
       };
       order.forEach(level=>{
         const Lraw=LEVELS[level]||{abbr:level,color:"#555"};
@@ -523,9 +527,9 @@ function render(){
         const lefts=grp.filter(b=>b.side==="L").sort(byCode);
         const rights=grp.filter(b=>b.side==="R").sort(byCode);
         const none=grp.filter(b=>b.side!=="L"&&b.side!=="R").sort(byCode);   // no-side -> left bucket
-        const coach=isCoach(level);
+        const coach=grp.some(b=>b.coaching);
         inner+=`<div class='lgroup${gcls}${coach?" coach":""}' style='--lc:${L.color}'>`+
-                 (coach?`<div class='early' title='Starts 30 min earlier — ${minus30(tm)}'>▲ ${minus30(tm)}</div>`:"")+
+                 (coach?`<div class='early' title='Coaching — starts 30 min earlier (${minus30(tm)})'>▲ ${minus30(tm)}</div>`:"")+
                  `<div class='lty' style='background:${L.color}'>${L.abbr}</div>`+
                  `<div class='sides'>`+
                    `<div class='side'><div class='slab'>LEFT</div><div class='sbox'>${lefts.map(pill).join("")+none.map(pill).join("")}</div></div>`+
@@ -619,12 +623,14 @@ function openModal(date,time,person){
     document.getElementById("mLevel").value=existing.level;
     document.getElementById("mSide").value=existing.side;
     document.getElementById("mStatus").value=existing.status||"";
+    document.getElementById("mCoach").checked=!!existing.coaching;
     document.getElementById("mTitle").textContent="Edit session";
     document.getElementById("mDelete").style.visibility="visible";
   }else{
     document.getElementById("mLevel").value=Object.keys(LEVELS)[0]||"Advanced";
     document.getElementById("mSide").value="";
     document.getElementById("mStatus").value="";
+    document.getElementById("mCoach").checked=false;
     document.getElementById("mTitle").textContent="Add session";
     document.getElementById("mDelete").style.visibility="hidden";
   }
@@ -643,6 +649,7 @@ document.getElementById("mSave").onclick=async()=>{
     await saveBooking({level:document.getElementById("mLevel").value,
                        side:document.getElementById("mSide").value,
                        status:document.getElementById("mStatus").value,
+                       coaching:document.getElementById("mCoach").checked,
                        ref:prev?prev.ref:"",date:editKey.date,time:editKey.time});
     render();closeModal();
   }catch(e){ setStatus("⚠️ Could not save: "+(e.message||e),true); }
@@ -656,7 +663,6 @@ document.getElementById("mDelete").onclick=async()=>{
 /* ---------- PDF parsing ---------- */
 function canonLevel(L){
   if(L==="Expert Turn") return "Expert Turns";
-  if(L==="Advanced Coaching") return "Performance Coaching";
   return L;
 }
 function matchLevel(text){
@@ -684,7 +690,7 @@ function parseText(text){
   const mk=(desc,d)=>{
     const {level}=matchLevel(desc);
     let side=""; const sm=desc.match(/\b(Left|Right)\b/i); if(sm) side=sm[1][0].toUpperCase();
-    return {level,side,ref,date:d.date,time:d.time};
+    return {level,side,coaching:hasCoaching(desc),ref,date:d.date,time:d.time};
   };
   if(items.length && items.length===dates.length){
     for(let i=0;i<items.length;i++) out.push(mk(items[i].desc,dates[i]));
@@ -694,7 +700,7 @@ function parseText(text){
     const ctx=T.slice(Math.max(0,d.index-140),d.index);
     const {level}=matchLevelNearest(ctx);
     let side=""; const sm=ctx.match(/\b(Left|Right)\b/i); if(sm) side=sm[1][0].toUpperCase();
-    out.push({level,side,ref,date:d.date,time:d.time});
+    out.push({level,side,coaching:hasCoaching(ctx),ref,date:d.date,time:d.time});
   }
   return out;
 }
@@ -718,7 +724,7 @@ function parsePasted(text){
     const {level,matched}=matchLevel(line);
     if(matched){
       let side=""; const sm=line.match(/\b(Left|Right)\b/i); if(sm) side=sm[1][0].toUpperCase();
-      pending={level,side};
+      pending={level,side,coaching:hasCoaching(line)};
     }
   }
   return out;
@@ -748,8 +754,8 @@ async function handleFiles(files){
 /* ---------- import preview / reconciliation ---------- */
 let importRows=[], importHideUnchanged=false;
 function keyDT(b){return b.date+"|"+b.time;}
-function sameBooking(a,b){return a.level===b.level && (a.side||"")===(b.side||"") && (a.ref||"")===(b.ref||"");}
-function descOf(x){ if(!x) return "—"; return `${x.level}${x.side?" "+x.side:""}${x.ref?" · Ref "+x.ref:""}`; }
+function sameBooking(a,b){return a.level===b.level && (a.side||"")===(b.side||"") && (a.ref||"")===(b.ref||"") && !!a.coaching===!!b.coaching;}
+function descOf(x){ if(!x) return "—"; return `${x.level}${x.coaching?" +Coaching":""}${x.side?" "+x.side:""}${x.ref?" · Ref "+x.ref:""}`; }
 function computeImportDiff(parsed){
   const pmap=new Map(); parsed.forEach(p=>pmap.set(keyDT(p),p));           // dedupe, last wins
   const mine=bookings.filter(b=>currentSurfer&&b.surfer_id===currentSurfer.id);
@@ -838,7 +844,7 @@ function fmtNice(b){
   const dt=new Date(b.date+"T00:00:00");
   const dir=b.side==="L"?"Left":b.side==="R"?"Right":"";
   const dmy=b.date.split("-").reverse().join("/");
-  return `${b.level}${dir?" ("+dir+")":""} — ${WEEKDAYS[dt.getDay()]} ${dmy} at ${b.time}`;
+  return `${b.level}${b.coaching?" + Coaching":""}${dir?" ("+dir+")":""} — ${WEEKDAYS[dt.getDay()]} ${dmy} at ${b.time}`;
 }
 function buildChangeEmail(){
   const mine=b=>currentSurfer&&b.surfer_id===currentSurfer.id;

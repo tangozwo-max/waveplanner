@@ -45,6 +45,7 @@ create table if not exists waveplanner.bookings (
   session_time time not null,
   side         text check (side in ('L','R')),        -- null = unspecified
   status       text check (status in ('out','in')),   -- null = normal booking; 'out' = move out; 'in' = book in
+  coaching     boolean not null default false,        -- true = coached session, starts 30 min early
   ref          text not null default '',              -- the Wave booking reference
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
