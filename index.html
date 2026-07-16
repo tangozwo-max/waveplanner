@@ -99,21 +99,14 @@
   .tag.missing{background:#fee2e2;color:#991b1b}
   .tag.unchanged{background:#eef2f4;color:#64748b}
   /* per-slot cell: one wave type, people below by fixed position (A left, T right) */
-  .daycount{margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;min-height:20px}
+  .daycount{margin-top:4px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:20px}
   .daycount .dc{font-size:11px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;line-height:1;display:inline-flex;align-items:center;gap:5px;cursor:pointer;border:1.5px solid transparent}
   .daycount .dc:hover{filter:brightness(1.12)}
   .daycount.filtering .dc{opacity:.4}
   .daycount.filtering .dc.active{opacity:1;border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
-  /* session count: digits 1..n as a rising staircase (1, 12, 123, ...), each digit
-     bigger than the last and bottom-aligned, like the old volume bars */
-  .daycount .dc .wn{display:inline-flex;align-items:flex-end;gap:1px;height:15px;
-    font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
-  .daycount .dc .wn .d{line-height:1}
-  .daycount .dc .wn .d1{font-size:7px;opacity:.7}
-  .daycount .dc .wn .d2{font-size:9px;opacity:.85}
-  .daycount .dc .wn .d3{font-size:11px}
-  .daycount .dc .wn .d4{font-size:13px}
-  .daycount .dc .wn .d5{font-size:15px}
+  /* session count: one filled dot per session, all the same size */
+  .daycount .dc .wn{display:inline-flex;align-items:center;gap:2px}
+  .daycount .dc .wn .dot{width:5px;height:5px;border-radius:50%;background:#fff}
   .cellwrap{display:flex;flex-direction:column;gap:3px}
   .lgroup{display:flex;flex-direction:column;gap:2px}
   .lgroup.out{opacity:.55}
@@ -314,7 +307,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v23 · 2026-07-16";
+const APP_VERSION="v24 · 2026-07-16";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -486,7 +479,7 @@ function render(){
       const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in").length;
       if(!n) return "";
       const active=String(s.id)===filterSurferId?" active":"";
-      const seq=Array.from({length:Math.min(n,5)},(_,i)=>`<i class='d d${i+1}'>${i+1}</i>`).join("");
+      const seq=Array.from({length:n},()=>`<i class='dot'></i>`).join("");
       return `<span class='dc${active}' data-fs='${s.id}' style='background:${userColorById[s.id]}' title='${s.code}: ${n} session${n>1?"s":""} — click to filter'>${s.code}<span class='wn'>${seq}</span></span>`;
     }).join("");
     const dcls=filterSurferId?" daycount filtering":" daycount";
