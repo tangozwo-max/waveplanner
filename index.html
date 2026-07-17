@@ -124,6 +124,15 @@
   .lgroup.coach .early .ctag{font-size:10px;font-weight:800;color:#fff;border-radius:4px;padding:0 4px;line-height:1.35;box-shadow:0 0 0 1px rgba(255,255,255,.55)}
   .lgroup.coach.out .early{text-decoration:line-through}
   .lty{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 5px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+  /* Announced session (nobody booked) — subtle gray marker on white */
+  .ann{border:1px dashed #cfd8dd;background:#fbfcfc;color:#8a97a0;border-radius:6px;padding:3px 5px 2px;text-align:center;cursor:default}
+  .ann.mine{cursor:pointer}
+  .ann.mine:hover{background:#eef4f6;border-color:#9fb4bd}
+  .ann .aty{display:block;font-size:10px;font-weight:800;letter-spacing:.2px;line-height:1.2;color:#7a8992}
+  .ann .anote{display:block;font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#aab5bc;margin-top:1px}
+  .ann .acoach{display:block;font-size:8px;font-weight:800;letter-spacing:.3px;color:#c17d1a;margin-top:1px}
+  .ann.out{opacity:.5}
+  .ann.out .aty{text-decoration:line-through}
   .sides{display:flex;gap:3px}
   .side{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;border:1px solid var(--line);border-radius:5px;padding:1px 1px 2px}
   .slab{font-size:8px;font-weight:800;letter-spacing:.4px;color:#93a0a8}
@@ -240,6 +249,10 @@
       <label class="checkrow"><input type="checkbox" id="mCoach"> Add coaching — starts 30 min earlier</label>
     </div>
     <div class="row">
+      <label>Announce only</label>
+      <label class="checkrow"><input type="checkbox" id="mAnnounce"> Just announce the session — nobody booked in</label>
+    </div>
+    <div class="row">
       <label>Change request</label>
       <select id="mStatus">
         <option value="">— none (booked) —</option>
@@ -307,7 +320,7 @@
 <script src="./config.js"></script>
 <script>
 /* ---------- version (shown in the header to verify the live build) ---------- */
-const APP_VERSION="v24 · 2026-07-16";
+const APP_VERSION="v25 · 2026-07-17";
 
 /* ---------- static config (levels loaded from DB) ---------- */
 const LEVEL_MATCH = ["Advanced Plus","Barrel Medley","Expert Barrel","Expert Turns","Expert Turn","Expert Plus","Advanced","Expert"];
@@ -353,7 +366,7 @@ function rowToApp(r){
   const s=surfersById[r.surfer_id]||{code:"?",name:"?"};
   return {id:r.id,surfer_id:r.surfer_id,person:s.code,name:s.name,
           level:levelNameById[r.level_id]||"Advanced",
-          side:r.side||"",status:r.status||"",ref:r.ref||"",coaching:!!r.coaching,
+          side:r.side||"",status:r.status||"",ref:r.ref||"",coaching:!!r.coaching,announcement:!!r.announcement,
           date:r.session_date,time:(r.session_time||"").slice(0,5)};
 }
 function mergeLocal(ar){
@@ -403,7 +416,7 @@ function levelId(name){return levelIdByName[name]||levelIdByName["Advanced"];}
 async function saveBooking(app){                       // save one session for the current surfer
   const row={surfer_id:currentSurfer.id,level_id:levelId(app.level),
              session_date:app.date,session_time:app.time,
-             side:app.side||null,status:app.status||null,ref:app.ref||"",coaching:!!app.coaching};
+             side:app.side||null,status:app.status||null,ref:app.ref||"",coaching:!!app.coaching,announcement:!!app.announcement};
   const {data,error}=await sb.from("bookings")
      .upsert(row,{onConflict:"surfer_id,session_date,session_time"}).select().single();
   if(error) throw error;
@@ -417,7 +430,7 @@ async function deleteBooking(id){
 async function upsertMany(apps){                       // bulk import for the current surfer
   if(!apps.length) return 0;
   const rows=apps.map(a=>({surfer_id:currentSurfer.id,level_id:levelId(a.level),
-     session_date:a.date,session_time:a.time,side:a.side||null,status:a.status||null,ref:a.ref||"",coaching:!!a.coaching}));
+     session_date:a.date,session_time:a.time,side:a.side||null,status:a.status||null,ref:a.ref||"",coaching:!!a.coaching,announcement:!!a.announcement}));
   const {data,error}=await sb.from("bookings")
      .upsert(rows,{onConflict:"surfer_id,session_date,session_time"}).select();
   if(error) throw error;
@@ -456,7 +469,7 @@ function minus30(t){
 let userColorById={}, gridSurfers=[];
 let filterSurferId=null;   // when set, show only this person's waves (as string id)
 function computeGridSurfers(days){
-  const ids=new Set(bookings.filter(b=>days.includes(b.date)).map(b=>b.surfer_id));
+  const ids=new Set(bookings.filter(b=>days.includes(b.date)&&!b.announcement).map(b=>b.surfer_id));
   if(currentSurfer) ids.add(currentSurfer.id);
   gridSurfers=[...ids].map(id=>({id,...(surfersById[id]||{code:"?",name:"?"})}))
                       .sort((a,b)=>(a.code||"").localeCompare(b.code||""));   // A left, T right
@@ -476,7 +489,7 @@ function render(){
     const dt=new Date(d+"T00:00:00");
     const cls=(d<todayISO)?"d-past":(d===todayISO)?"d-today":"d-future";
     const cnt=gridSurfers.map(s=>{
-      const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in").length;
+      const n=bookings.filter(b=>b.date===d&&b.surfer_id===s.id&&b.status!=="in"&&!b.announcement).length;
       if(!n) return "";
       const active=String(s.id)===filterSurferId?" active":"";
       const seq=Array.from({length:n},()=>`<i class='dot'></i>`).join("");
@@ -491,13 +504,16 @@ function render(){
     h+=`<tr><td class='time'>${tm}</td>`;
     days.forEach(d=>{
       const dcls=(d<todayISO)?"d-past":(d===todayISO)?"d-today":"d-future";
-      let cb=bookings.filter(b=>b.date===d&&b.time===tm);
+      const cellAll=bookings.filter(b=>b.date===d&&b.time===tm);
+      let cb=cellAll.filter(b=>!b.announcement);                   // real bookings (a person is in)
+      // announced-only sessions (nobody booked) — hidden while filtering to one person
+      const anns=filterSurferId?[]:cellAll.filter(b=>b.announcement);
       if(filterSurferId){
         // waves (levels) the filtered person booked in this slot
         const myLevels=new Set(cb.filter(b=>String(b.surfer_id)===filterSurferId).map(b=>b.level));
         cb=myLevels.size?cb.filter(b=>myLevels.has(b.level)):[];   // others visible only on the same wave
       }
-      if(!cb.length){ h+=`<td class='slot empty ${dcls}' data-d='${d}' data-t='${tm}'></td>`; return; }
+      if(!cb.length && !anns.length){ h+=`<td class='slot empty ${dcls}' data-d='${d}' data-t='${tm}'></td>`; return; }
       // group by wave type (shown once per slot); order by level difficulty
       const levelOrder=Object.keys(LEVELS);
       const order=[], groups={};
@@ -535,6 +551,22 @@ function render(){
                  `</div>`+
                `</div>`;
       });
+      // announced sessions (nobody booked) — subtle gray markers below the real waves
+      if(anns.length){
+        anns.sort((a,b)=>levelOrder.indexOf(a.level)-levelOrder.indexOf(b.level));
+        anns.forEach(b=>{
+          const abbr=abbrOf(b.level,(LEVELS[b.level]||{}).abbr||b.level);
+          const mine=currentSurfer&&b.surfer_id===currentSurfer.id;
+          const side=b.side==="L"?" · Left":b.side==="R"?" · Right":"";
+          const ocls=b.status==="out"?" out":"";
+          const tip=`Session — ${b.level}${b.coaching?" · Coaching":""}${side} · nobody booked`;
+          inner+=`<div class='ann${mine?" mine":""}${ocls}' ${mine?`data-annid='${b.id}'`:""} title="${tip}">`+
+                   `<span class='aty'>${abbr}${side}</span>`+
+                   (b.coaching?`<span class='acoach'>▲ ${minus30(tm)} coaching</span>`:"")+
+                   `<span class='anote'>session</span>`+
+                 `</div>`;
+        });
+      }
       const iHave=currentSurfer&&cb.some(b=>b.surfer_id===currentSurfer.id);
       if(currentSurfer&&!iHave&&!filterSurferId) inner+="<div class='addp' data-addself='1'>＋ add</div>";
       inner+="</div>";
@@ -548,6 +580,8 @@ function render(){
 
   t.querySelectorAll("td.slot").forEach(td=>{
     td.addEventListener("click",e=>{
+      const ann=e.target.closest("[data-annid]");
+      if(ann){ openModal(td.dataset.d,td.dataset.t,null,ann.dataset.annid); return; }
       const box=e.target.closest("[data-p]");
       if(box){ openModal(td.dataset.d,td.dataset.t,box.dataset.p); return; }
       if(e.target.closest("[data-addself]") || td.classList.contains("empty")){
@@ -570,6 +604,7 @@ function renderSummary(){
   if(!el) return;
   const stats={};
   bookings.forEach(b=>{
+    if(b.announcement) return;                      // announced-only session — nobody booked
     if(b.status==="in") return;                     // "book in" = not booked yet
     const who=b.name||b.person;
     if(!stats[who]) stats[who]={total:0,out:0,levels:{}};
@@ -603,12 +638,14 @@ function renderLegend(){
   const usersHtml=gridSurfers.map(s=>`<span class='k'><span class='sw' style='background:${userColorById[s.id]}'></span>${s.name} (${s.code})</span>`).join("");
   el.innerHTML="<strong style='margin-right:6px'>Levels:</strong>"+levelsHtml+
     (usersHtml?"<strong style='margin:0 6px 0 14px'>People:</strong>"+usersHtml:"")+
+    "<span class='k' style='margin-left:14px'><span class='sw' style='background:#fbfcfc;border:1px dashed #cfd8dd'></span>announced session (nobody booked)</span>"+
     "<span class='k' style='margin-left:10px;color:#6b7c84'>click your cell to edit</span>";
 }
 
 /* ---------- modal ---------- */
-function openModal(date,time,person){
-  const existing=person?bookingAt(person,date,time):null;
+function openModal(date,time,person,bookingId){
+  const existing=bookingId?bookings.find(b=>b.id===bookingId)
+                          :person?bookingAt(person,date,time):null;
   if(existing && currentSurfer && existing.surfer_id!==currentSurfer.id){
     setStatus(`That's ${existing.name}'s session — you can only edit your own.`,true);
     return;
@@ -622,6 +659,7 @@ function openModal(date,time,person){
     document.getElementById("mSide").value=existing.side;
     document.getElementById("mStatus").value=existing.status||"";
     document.getElementById("mCoach").checked=!!existing.coaching;
+    document.getElementById("mAnnounce").checked=!!existing.announcement;
     document.getElementById("mTitle").textContent="Edit session";
     document.getElementById("mDelete").style.visibility="visible";
   }else{
@@ -629,6 +667,7 @@ function openModal(date,time,person){
     document.getElementById("mSide").value="";
     document.getElementById("mStatus").value="";
     document.getElementById("mCoach").checked=false;
+    document.getElementById("mAnnounce").checked=false;
     document.getElementById("mTitle").textContent="Add session";
     document.getElementById("mDelete").style.visibility="hidden";
   }
@@ -648,6 +687,7 @@ document.getElementById("mSave").onclick=async()=>{
                        side:document.getElementById("mSide").value,
                        status:document.getElementById("mStatus").value,
                        coaching:document.getElementById("mCoach").checked,
+                       announcement:document.getElementById("mAnnounce").checked,
                        ref:prev?prev.ref:"",date:editKey.date,time:editKey.time});
     render();closeModal();
   }catch(e){ setStatus("⚠️ Could not save: "+(e.message||e),true); }
@@ -756,7 +796,7 @@ function sameBooking(a,b){return a.level===b.level && (a.side||"")===(b.side||""
 function descOf(x){ if(!x) return "—"; return `${x.level}${x.coaching?" +Coaching":""}${x.side?" "+x.side:""}${x.ref?" · Ref "+x.ref:""}`; }
 function computeImportDiff(parsed){
   const pmap=new Map(); parsed.forEach(p=>pmap.set(keyDT(p),p));           // dedupe, last wins
-  const mine=bookings.filter(b=>currentSurfer&&b.surfer_id===currentSurfer.id);
+  const mine=bookings.filter(b=>currentSurfer&&b.surfer_id===currentSurfer.id&&!b.announcement);
   const mineMap=new Map(mine.map(b=>[keyDT(b),b]));
   const rows=[];
   pmap.forEach((p,k)=>{
@@ -847,8 +887,8 @@ function fmtNice(b){
 function buildChangeEmail(){
   const mine=b=>currentSurfer&&b.surfer_id===currentSurfer.id;
   const sortf=(a,b)=>(a.date+a.time).localeCompare(b.date+b.time);
-  const outs=bookings.filter(b=>mine(b)&&b.status==="out").sort(sortf);
-  const ins=bookings.filter(b=>mine(b)&&b.status==="in").sort(sortf);
+  const outs=bookings.filter(b=>mine(b)&&!b.announcement&&b.status==="out").sort(sortf);
+  const ins=bookings.filter(b=>mine(b)&&!b.announcement&&b.status==="in").sort(sortf);
   let body="Hi Wave team,\n\nPlease could you make the following change(s) to my booking(s):\n";
   if(outs.length) body+="\nMOVE OUT (please release / change these sessions):\n"+
     outs.map(b=>`• ${personName(b)} — ${fmtNice(b)}${b.ref?"  [Ref "+b.ref+"]":""}`).join("\n")+"\n";

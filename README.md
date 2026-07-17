@@ -16,7 +16,7 @@ All objects live in a Postgres schema named **`waveplanner`** (not `public`).
 |-------------------------|---------|
 | `waveplanner.surfers`   | One row per person, linked 1:1 to a Supabase auth user (`user_id`). Holds the grid label `code` (e.g. `A`, `T`) and display `name`. |
 | `waveplanner.levels`    | Wave types — `name`, `abbr`, `color`, `sort_order`, `active`. |
-| `waveplanner.bookings`  | Sessions — `surfer_id`, `level_id`, `session_date`, `session_time`, `side` (`L`/`R`), `status` (`out`/`in`), `ref`. Unique per `(surfer_id, date, time)`. |
+| `waveplanner.bookings`  | Sessions — `surfer_id`, `level_id`, `session_date`, `session_time`, `side` (`L`/`R`), `status` (`out`/`in`), `coaching`, `announcement`, `ref`. Unique per `(surfer_id, date, time)`. An `announcement` row marks that a session exists in a slot without booking anyone in — drawn as a subtle gray marker, excluded from per-person counts. |
 
 RLS: read-all for signed-in users, write-your-own for `bookings`/`surfers`.
 A trigger on `auth.users` auto-creates a `surfers` row on sign-up.
